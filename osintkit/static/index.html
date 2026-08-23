@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>osintkit — UA/RF OSINT toolkit</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --dim: #8b949e; --accent: #2f81f7;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif; font-size: 15px;
+    display: grid; grid-template-columns: 280px 1fr; min-height: 100vh;
+  }
+  aside { background: var(--panel); border-right: 1px solid var(--border); padding: 20px 16px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .ver { color: var(--dim); font-size: 12px; margin-bottom: 24px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--dim); margin: 20px 0 10px; }
+  .mod { display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+         border-radius: 6px; cursor: pointer; user-select: none; }
+  .mod:hover { background: #21262d; }
+  .mod input { accent-color: var(--accent); }
+  .mod b { font-size: 13px; min-width: 70px; }
+  .mod span { color: var(--dim); font-size: 11.5px; }
+  main { padding: 28px 36px; max-width: 1100px; }
+  .searchbar { display: flex; gap: 10px; }
+  .searchbar input[type=text] {
+    flex: 1; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 14px; font-size: 15px; outline: none;
+  }
+  .searchbar input[type=text]:focus { border-color: var(--accent); }
+  button.run {
+    background: var(--accent); border: none; color: #fff; font-weight: 600;
+    border-radius: 8px; padding: 0 26px; cursor: pointer; font-size: 15px;
+  }
+  button.run:hover { filter: brightness(1.15); }
+  button.run:disabled { opacity: .5; cursor: wait; }
+  .status { margin: 18px 0 6px; color: var(--dim); font-size: 13px; height: 18px; }
+  .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 22px; visibility: hidden; }
+  .progress i { display: block; height: 100%; width: 30%;
+                background: var(--accent); animation: slide 1.2s ease-in-out infinite alternate; }
+  @keyframes slide { from { transform: translateX(-100%);} to { transform: translateX(400%);} }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h3 { font-size: 14px; margin-bottom: 10px; }
+  .card h3 .t { color: var(--dim); font-weight: 400; font-size: 12px; float: right; }
+  .finding { display: flex; gap: 12px; padding: 7px 0; border-top: 1px solid #21262d;
+             align-items: baseline; }
+  .kind { font-family: Consolas, monospace; font-size: 11.5px; color: var(--accent);
+          min-width: 86px; flex-shrink: 0; }
+  .val { flex: 1; white-space: pre-wrap; word-break: break-word; font-size: 13.5px; }
+  .val a { color: var(--accent); text-decoration: none; } .val a:hover { text-decoration: underline; }
+  .conf { font-size: 11px; border-radius: 10px; padding: 1px 9px; flex-shrink: 0; }
+  .conf.high { color: var(--green); border: 1px solid var(--green); }
+  .conf.medium { color: var(--yellow); border: 1px solid var(--yellow); }
+  .conf.low { color: var(--dim); border: 1px solid var(--dim); }
+  .err { color: var(--red); font-size: 13px; }
+  .empty { color: var(--dim); font-style: italic; font-size: 13px; padding: 4px 0; }
+  .hist-item { display: block; width: 100%; text-align: left; background: none;
+               border: none; color: var(--text); font-size: 12.5px; padding: 6px 8px;
+               border-radius: 6px; cursor: pointer; overflow: hidden;
+               text-overflow: ellipsis; white-space: nowrap; }
+  .hist-item:hover { background: #21262d; }
+  .hint { color: var(--dim); font-size: 12.5px; margin-top: 14px; }
+  code { background: #21262d; border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>🔍 osintkit</h1>
+  <div class="ver" id="ver">…</div>
+
+  <h2>Модулі</h2>
+  <div id="modules"></div>
+  <div class="hint"><a href="#" onclick="toggleAll(true);return false" style="color:var(--accent)">увімкнути всі</a> ·
+                    <a href="#" onclick="toggleAll(false);return false" style="color:var(--accent)">вимкнути всі</a></div>
+
+  <h2>Історія звітів</h2>
+  <div id="history"><div class="empty">порожньо</div></div>
+</aside>
+
+<main>
+  <form class="searchbar" onsubmit="runScan(); return false">
+    <input type="text" id="target" autofocus
+           placeholder="Юзернейм, +380…, email, домен, URL або 'lat,lon'">
+    <button class="run" id="runBtn" type="submit">Сканувати</button>
+  </form>
+  <div class="status" id="status"></div>
+  <div class="progress" id="prog"><i></i></div>
+  <div id="results"></div>
+</main>
+
+<script>
+const API = location.origin.includes('http') ? '' : 'http://127.0.0.1:8765';
+let MODULES = [];
+let pollTimer = null;
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+async function init() {
+  const meta = await (await fetch(API + '/api/meta')).json();
+  document.getElementById('ver').textContent = 'v' + meta.version + ' · UA/RF focused';
+  MODULES = meta.modules;
+  const box = document.getElementById('modules');
+  for (const m of MODULES) {
+    const label = document.createElement('label');
+    label.className = 'mod';
+    label.title = m.help;
+    label.innerHTML =
+      '<input type="checkbox" checked value="' + esc(m.name) + '">' +
+      '<b>' + esc(m.name) + '</b><span>' + esc(m.hint || m.help) + '</span>';
+    box.appendChild(label);
+  }
+  loadHistory();
+}
+
+function toggleAll(on) {
+  document.querySelectorAll('#modules input').forEach(i => i.checked = on);
+}
+
+async function loadHistory() {
+  try {
+    const h = await (await fetch(API + '/api/history')).json();
+    const box = document.getElementById('history');
+    box.innerHTML = '';
+    if (!h.reports.length) { box.innerHTML = '<div class="empty">порожньо</div>'; return; }
+    for (const r of h.reports) {
+      const b = document.createElement('button');
+      b.className = 'hist-item';
+      b.textContent = r.file.replace(/^report_/, '').replace(/\.json$/, '');
+      b.onclick = () => showReport(r.file, true);
+      box.appendChild(b);
+    }
+  } catch {}
+}
+
+function runScan() {
+  const target = document.getElementById('target').value.trim();
+  if (!target) return;
+  const mods = [...document.querySelectorAll('#modules input:checked')].map(i => i.value);
+  if (!mods.length) { setStatus('Увімкни хоча б один модуль', true); return; }
+
+  document.getElementById('results').innerHTML = '';
+  setStatus('Запуск скану «' + target + '» …');
+  prog(true);
+  document.getElementById('runBtn').disabled = true;
+
+  fetch(API + '/api/scan', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ target, modules: mods })
+  }).then(r => r.json()).then(j => {
+    if (!j.job_id) throw new Error(JSON.stringify(j));
+    poll(j.job_id);
+  }).catch(e => { setStatus('Помилка запуску: ' + e.message, true); prog(false); });
+}
+
+function poll(jobId) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const j = await (await fetch(API + '/api/job/' + jobId)).json();
+    renderResults(j.results, j.target, false);
+    const done = j.results.length, total = j.modules.length;
+    if (j.status === 'done') {
+      clearInterval(pollTimer);
+      setStatus('Готово: ' + done + '/' + total + ' модулів · звіт збережено в out/');
+      prog(false);
+      document.getElementById('runBtn').disabled = false;
+      loadHistory();
+    } else {
+      setStatus('Сканування… модуль ' + Math.min(done+1,total) + '/' + total);
+    }
+  }, 1200);
+}
+
+function renderResults(results, target, staticReport) {
+  const box = document.getElementById('results');
+  box.innerHTML = '';
+  let total = 0;
+  results.sort((a,b) => a.module.localeCompare(b.module));
+  for (const res of results) {
+    const card = document.createElement('div'); card.className = 'card';
+    const nf = res.findings ? res.findings.length : 0; total += nf;
+    let head = '<h3>' + esc(res.module) +
+      ' <span class="t">' + nf + ' знахідок · ' + res.elapsed_s + 's</span></h3>';
+    if (!res.ok) head += '<div class="err">⚠ ' + esc(res.error) + '</div>';
+    card.innerHTML = head;
+    if (!res.findings || !res.findings.length) {
+      card.insertAdjacentHTML('beforeend', '<div class="empty">— нічого не знайдено</div>');
+    }
+    for (const f of res.findings || []) {
+      let val = esc(f.value);
+      if (f.url && /^https?:/.test(f.url))
+        val += '<br><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.url.slice(0,90)) + '</a>';
+      if (f.extra)
+        for (const [k,v] of Object.entries(f.extra)) {
+          if (!v) continue;
+          const vv = typeof v === 'string' ? v : JSON.stringify(v);
+          val += '\n<span style="color:var(--dim)">' + esc(k) + ': </span>' + esc(vv).slice(0, 300);
+        }
+      card.insertAdjacentHTML('beforeend',
+        '<div class="finding"><span class="kind">' + esc(f.kind) + '</span>' +
+        '<span class="val">' + val + '</span>' +
+        '<span class="conf ' + f.confidence + '">' + f.confidence + '</span></div>');
+    }
+    box.appendChild(card);
+  }
+  if (staticReport) setStatus('Звіт: ' + esc(target) + ' · ' + total + ' знахідок');
+}
+
+async function showReport(name) {
+  try {
+    const rep = await (await fetch(API + '/api/report/' + name)).json();
+    renderResults(rep.results, rep.generated ? name : rep.target, true);
+    window.scrollTo(0, 0);
+  } catch (e) { setStatus('Не вдалось завантажити звіт', true); }
+}
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--dim)';
+}
+function prog(on) {
+  document.getElementById('prog').style.visibility = on ? 'visible' : 'hidden';
+}
+init();
+</script>
+</body>
+</html>

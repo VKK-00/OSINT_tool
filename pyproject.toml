@@ -10,10 +10,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+web = ["fastapi>=0.110", "uvicorn>=0.29"]
+
+[project.optional-dependencies]
 dev = ["pytest"]
 
 [project.scripts]
 osintkit = "osintkit.__main__:main"
+osintkit-web = "osintkit.webapp:main"
 
 [build-system]
 requires = ["setuptools>=68"]
