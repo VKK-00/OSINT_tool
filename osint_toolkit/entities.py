@@ -156,6 +156,7 @@ def entities_from_findings(findings: tuple[Finding, ...]) -> tuple[Entity, ...]:
                     "number_range": "phone-range",
                     "zip_code": "postal-code",
                     "country_code": "country-code",
+                    "coordinates": "geo-coordinates",
                     "display_name": "name",
                     "account_id": "account-id",
                     "media_shortcode": "media-shortcode",

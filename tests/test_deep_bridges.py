@@ -39,6 +39,45 @@ def test_engine_includes_bridges():
     assert {"sanctions-index", "deep-leaks", "dorks", "exif"} <= names
 
 
+def test_sanctions_hit_builds_country_graph_edges():
+    """A sanctions hit must yield country entities and person->country edges."""
+    from osint_toolkit.engine import Finding, ScanTarget
+    from osint_toolkit.entities import (
+        entities_from_findings,
+        entities_from_targets,
+    )
+    from osint_toolkit.graph import _edges_from_findings
+
+    target = ScanTarget("person", "yanukovych")
+    finding = Finding(
+        module="sanctions-index", source="opensanctions-local",
+        target="yanukovych", status="hit", confidence="medium",
+        title="viktor yanukovych",
+        metadata={"name": "viktor yanukovych", "country": "ru, ua"},
+    )
+    findings = (finding,)
+    entities = (
+        entities_from_targets((target,))
+        + entities_from_findings(findings)
+    )
+    keys = {(e.kind, e.value) for e in entities}
+    edges = _edges_from_findings((target,), findings, keys)
+    relations = {e.relation for e in edges}
+    assert "country_hint" in relations
+    country_values = {e.target_value for e in edges if e.relation == "country_hint"}
+    assert {"ru", "ua"} <= country_values
+
+
+def test_exif_coordinates_entity():
+    from osint_toolkit.engine import Finding
+    from osint_toolkit.entities import entities_from_findings
+
+    f = Finding(module="exif", source="exif-gps", target="http://x/i.jpg",
+                status="hit", metadata={"coordinates": "50.450100,30.528400"})
+    ents = entities_from_findings((f,))
+    assert any(e.kind == "geo-coordinates" for e in ents)
+
+
 def test_phone_native_still_works():
     from osint_toolkit.modules.phone import PhoneScanModule
     res = PhoneScanModule().scan(

@@ -825,6 +825,10 @@ def _metadata_values(key: str, value: str) -> tuple[str, ...]:
         "ip",
         "provider",
         "providers",
+        "country",
+        "coordinates",
+        "camera",
+        "sanction_topic",
     }:
         parts = [part.strip() for part in value.replace("|", ",").split(",")]
         return tuple(part for part in parts if part)
