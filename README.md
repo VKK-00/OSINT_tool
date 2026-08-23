@@ -13,6 +13,31 @@
 
 Рабочая карта parity: [UPSTREAM_PARITY.ru.md](UPSTREAM_PARITY.ru.md).
 
+## Deep-модули (интегрированный osintkit)
+
+В репозиторий интегрирован автономный пакет [`osintkit/`](osintkit/) — его возможности доступны двумя путями:
+
+**1. Как native-модули движка** (зарегистрированы в `build_default_engine`, работают через общий `scan`/`investigate` и единый `Finding`):
+
+| Модуль | Типы таргетов | Что делает |
+|---|---|---|
+| `sanctions-index` | person, username, ru-ua | офлайн-поиск по санкционным спискам OpenSanctions (~1.2M сущностей; индекс строится один раз) |
+| `deep-leaks` | email, phone, username, person | поиск по локальным датасетам утечек (sqlite-индекс; данные не покидают машину) |
+| `dorks` | все типы | готовые поисковые пивоты Google/Yandex/DDG/Bing c site-фильтрами (vk.com, ok.ru, t.me, habr.com, pastebin…) |
+| `exif` | url | EXIF-форензика фото: GPS→координаты+карты, камера, дата зйомки |
+
+**2. Как самостоятельный CLI/веб-инструмент**:
+
+```powershell
+python -m osintkit scan -m all "ivan_petrov"      # все подходящие модули
+python -m osintkit scan -m sanctions "ivanov"     # санкции офлайн
+python -m osintkit leaks-import ./my_leaks/       # индекс утечек
+python -m osintkit sanctions-update               # индекс OpenSanctions (~1 раз)
+osintkit-web                                       # веб-UI + watch-мониторинг на http://127.0.0.1:8765
+```
+
+Веб-UI: выбор модулей, живой прогресс, силовой граф target→модули→сущности, NEW-диф между сканами, watch-режим (периодический рескан с подсчётом новых находок), JSON/HTML/CSV отчёты.
+
 План глубокой интеграции “один ввод -> все подходящие сервисы -> единый отчёт”: [DEEP_INTEGRATION_PLAN.ru.md](DEEP_INTEGRATION_PLAN.ru.md).
 
 Текущий первый слой уже умеет:

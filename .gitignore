@@ -1,0 +1,1 @@
+﻿out/\n__pycache__/\n*.pyc\n.venv/\nvenv/\ndist/\nbuild/\n*.egg-info/\nconfig.toml\ntest_photo.jpg

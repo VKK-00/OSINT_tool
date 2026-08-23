@@ -13,6 +13,10 @@ from .modules import (
     UsernameScanModule,
     WebMetadataModule,
 )
+from .modules.deep_leaks import DeepLeaksModule
+from .modules.deep_sanctions import SanctionsIndexModule
+from .modules.dorks import DorksModule
+from .modules.exif_photo import ExifPhotoModule
 
 
 def build_default_engine() -> Engine:
@@ -28,5 +32,9 @@ def build_default_engine() -> Engine:
             InstagramPublicProfileModule(),
             SocialPublicProfileModule(),
             RuUaSourcePackModule(),
+            SanctionsIndexModule(),
+            DeepLeaksModule(),
+            DorksModule(),
+            ExifPhotoModule(),
         ]
     )

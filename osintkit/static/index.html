@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>osintkit — UA/RF OSINT toolkit</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --dim: #8b949e; --accent: #2f81f7;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif; font-size: 15px;
+    display: grid; grid-template-columns: 280px 1fr; min-height: 100vh;
+  }
+  aside { background: var(--panel); border-right: 1px solid var(--border); padding: 20px 16px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .ver { color: var(--dim); font-size: 12px; margin-bottom: 24px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--dim); margin: 20px 0 10px; }
+  .mod { display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+         border-radius: 6px; cursor: pointer; user-select: none; }
+  .mod:hover { background: #21262d; }
+  .mod input { accent-color: var(--accent); }
+  .mod b { font-size: 13px; min-width: 70px; }
+  .mod span { color: var(--dim); font-size: 11.5px; }
+  main { padding: 28px 36px; max-width: 1100px; }
+  .searchbar { display: flex; gap: 10px; }
+  .searchbar input[type=text] {
+    flex: 1; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 14px; font-size: 15px; outline: none;
+  }
+  .searchbar input[type=text]:focus { border-color: var(--accent); }
+  button.run {
+    background: var(--accent); border: none; color: #fff; font-weight: 600;
+    border-radius: 8px; padding: 0 26px; cursor: pointer; font-size: 15px;
+  }
+  button.run:hover { filter: brightness(1.15); }
+  button.run:disabled { opacity: .5; cursor: wait; }
+  .status { margin: 18px 0 6px; color: var(--dim); font-size: 13px; height: 18px; }
+  #graphWrap { display: none; margin-bottom: 20px; }
+  #graph { width: 100%; height: 460px; background: var(--panel);
+           border: 1px solid var(--border); border-radius: 10px;
+           cursor: grab; display: block; }
+  .legend { color: var(--dim); font-size: 12px; margin: 6px 0 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+              margin: 0 5px 0 14px; }
+  .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 22px; visibility: hidden; }
+  .progress i { display: block; height: 100%; width: 30%;
+                background: var(--accent); animation: slide 1.2s ease-in-out infinite alternate; }
+  @keyframes slide { from { transform: translateX(-100%);} to { transform: translateX(400%);} }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h3 { font-size: 14px; margin-bottom: 10px; }
+  .card h3 .t { color: var(--dim); font-weight: 400; font-size: 12px; float: right; }
+  .finding { display: flex; gap: 12px; padding: 7px 0; border-top: 1px solid #21262d;
+             align-items: baseline; }
+  .kind { font-family: Consolas, monospace; font-size: 11.5px; color: var(--accent);
+          min-width: 86px; flex-shrink: 0; }
+  .val { flex: 1; white-space: pre-wrap; word-break: break-word; font-size: 13.5px; }
+  .val a { color: var(--accent); text-decoration: none; } .val a:hover { text-decoration: underline; }
+  .conf { font-size: 11px; border-radius: 10px; padding: 1px 9px; flex-shrink: 0; }
+  .conf.high { color: var(--green); border: 1px solid var(--green); }
+  .conf.medium { color: var(--yellow); border: 1px solid var(--yellow); }
+  .conf.low { color: var(--dim); border: 1px solid var(--dim); }
+  .badge-new { font-size: 10.5px; font-weight: 700; color: #fff; background: var(--accent);
+               border-radius: 8px; padding: 1px 7px; flex-shrink: 0; letter-spacing: .04em; }
+  .adminrow { display: flex; gap: 6px; margin-bottom: 8px; }
+  .adminrow input { flex: 1; min-width: 0; background: #0d1117; border: 1px solid var(--border);
+                    color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  .mini { background: #21262d; border: none; color: var(--text); font-size: 12px;
+          border-radius: 6px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .mini:hover { filter: brightness(1.2); }
+  #adminStatus { font-size: 11.5px; color: var(--dim); word-break: break-word; }
+  #adminStatus.done { color: var(--green); } #adminStatus.error, #adminStatus.running { color: var(--yellow); }
+  .err { color: var(--red); font-size: 13px; }
+  .empty { color: var(--dim); font-style: italic; font-size: 13px; padding: 4px 0; }
+  .hist-item { display: block; width: 100%; text-align: left; background: none;
+               border: none; color: var(--text); font-size: 12.5px; padding: 6px 8px;
+               border-radius: 6px; cursor: pointer; overflow: hidden;
+               text-overflow: ellipsis; white-space: nowrap; }
+  .hist-item:hover { background: #21262d; }
+  .hint { color: var(--dim); font-size: 12.5px; margin-top: 14px; }
+  code { background: #21262d; border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>🔍 osintkit</h1>
+  <div class="ver" id="ver">…</div>
+
+  <h2>Модулі</h2>
+  <div id="modules"></div>
+  <div class="hint"><a href="#" onclick="toggleAll(true);return false" style="color:var(--accent)">увімкнути всі</a> ·
+                    <a href="#" onclick="toggleAll(false);return false" style="color:var(--accent)">вимкнути всі</a></div>
+
+  <h2>Дані</h2>
+  <div class="adminrow">
+    <input type="text" id="leakPath" placeholder="шлях до файлу/папки витоків">
+    <button class="mini" onclick="adminOp('leaks')">Імпорт</button>
+  </div>
+  <div class="adminrow">
+    <button class="mini" style="flex:1" onclick="adminOp('sanctions')">⟳ Оновити санкційні списки (OpenSanctions)</button>
+  </div>
+  <div id="adminStatus">індекси: leaks — локальні, sanctions — через CLI або кнопку вище</div>
+
+  <h2>Моніторинг</h2>
+  <div id="watches"><div class="empty">немає активних</div></div>
+
+  <h2>Історія звітів</h2>
+  <div id="history"><div class="empty">порожньо</div></div>
+</aside>
+
+<main>
+  <form class="searchbar" onsubmit="runScan(); return false">
+    <input type="text" id="target" autofocus
+           placeholder="Юзернейм, +380…, email, домен, URL або 'lat,lon'">
+    <button class="run" id="runBtn" type="submit">Сканувати</button>
+  </form>
+  <div class="status" id="status"></div>
+  <button class="mini" id="watchBtn" style="display:none;margin-bottom:18px"
+          onclick="startWatch()">👁 Слідкувати за цим таргетом (рескан кожні 10 хв)</button>
+  <div class="progress" id="prog"><i></i></div>
+  <div id="graphWrap">
+    <canvas id="graph"></canvas>
+    <div class="legend"><i style="background:#e6edf3"></i>target
+      <i style="background:#2f81f7"></i>модуль
+      <i style="background:#d29922"></i>сутність</div>
+  </div>
+  <div id="results"></div>
+</main>
+
+<script>
+const API = location.origin.includes('http') ? '' : 'http://127.0.0.1:8765';
+let MODULES = [];
+let pollTimer = null;
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+async function init() {
+  const meta = await (await fetch(API + '/api/meta')).json();
+  document.getElementById('ver').textContent = 'v' + meta.version + ' · UA/RF focused';
+  MODULES = meta.modules;
+  const box = document.getElementById('modules');
+  for (const m of MODULES) {
+    const label = document.createElement('label');
+    label.className = 'mod';
+    label.title = m.help;
+    label.innerHTML =
+      '<input type="checkbox" checked value="' + esc(m.name) + '">' +
+      '<b>' + esc(m.name) + '</b><span>' + esc(m.hint || m.help) + '</span>';
+    box.appendChild(label);
+  }
+  loadHistory();
+}
+
+function toggleAll(on) {
+  document.querySelectorAll('#modules input').forEach(i => i.checked = on);
+}
+
+async function loadHistory() {
+  try {
+    const h = await (await fetch(API + '/api/history')).json();
+    const box = document.getElementById('history');
+    box.innerHTML = '';
+    if (!h.reports.length) { box.innerHTML = '<div class="empty">порожньо</div>'; return; }
+    for (const r of h.reports) {
+      const b = document.createElement('button');
+      b.className = 'hist-item';
+      b.textContent = r.file.replace(/^report_/, '').replace(/\.json$/, '');
+      b.onclick = () => showReport(r.file, true);
+      box.appendChild(b);
+    }
+  } catch {}
+}
+
+function runScan() {
+  const target = document.getElementById('target').value.trim();
+  if (!target) return;
+  const mods = [...document.querySelectorAll('#modules input:checked')].map(i => i.value);
+  if (!mods.length) { setStatus('Увімкни хоча б один модуль', true); return; }
+
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('watchBtn').style.display = 'none';
+  setStatus('Запуск скану «' + target + '» …');
+  prog(true);
+  document.getElementById('runBtn').disabled = true;
+
+  fetch(API + '/api/scan', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ target, modules: mods })
+  }).then(r => r.json()).then(j => {
+    if (!j.job_id) throw new Error(JSON.stringify(j));
+    poll(j.job_id);
+  }).catch(e => { setStatus('Помилка запуску: ' + e.message, true); prog(false); });
+}
+
+function poll(jobId) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const j = await (await fetch(API + '/api/job/' + jobId)).json();
+    renderResults(j.results, j.target, false);
+    const done = j.results.length, total = j.modules.length;
+    if (j.status === 'done') {
+      clearInterval(pollTimer);
+      setStatus('Готово: ' + done + '/' + total + ' модулів · звіт збережено в out/');
+      prog(false);
+      document.getElementById('runBtn').disabled = false;
+      buildGraph(j.results);
+      loadHistory();
+      document.getElementById('watchBtn').style.display = 'inline-block';
+    } else {
+      setStatus('Сканування… модуль ' + Math.min(done+1,total) + '/' + total);
+    }
+  }, 1200);
+}
+
+function renderResults(results, target, staticReport) {
+  const box = document.getElementById('results');
+  box.innerHTML = '';
+  let total = 0;
+  results.sort((a,b) => a.module.localeCompare(b.module));
+  for (const res of results) {
+    const card = document.createElement('div'); card.className = 'card';
+    const nf = res.findings ? res.findings.length : 0; total += nf;
+    let head = '<h3>' + esc(res.module) +
+      ' <span class="t">' + nf + ' знахідок · ' + res.elapsed_s + 's</span></h3>';
+    if (!res.ok) head += '<div class="err">⚠ ' + esc(res.error) + '</div>';
+    card.innerHTML = head;
+    if (!res.findings || !res.findings.length) {
+      card.insertAdjacentHTML('beforeend', '<div class="empty">— нічого не знайдено</div>');
+    }
+    for (const f of res.findings || []) {
+      let val = esc(f.value);
+      if (f.url && /^https?:/.test(f.url))
+        val += '<br><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.url.slice(0,90)) + '</a>';
+      if (f.extra)
+        for (const [k,v] of Object.entries(f.extra)) {
+          if (!v || k === 'new') continue;
+          const vv = typeof v === 'string' ? v : JSON.stringify(v);
+          val += '\n<span style="color:var(--dim)">' + esc(k) + ': </span>' + esc(vv).slice(0, 300);
+        }
+      const isNew = f.extra && f.extra.new;
+      card.insertAdjacentHTML('beforeend',
+        '<div class="finding"><span class="kind">' + esc(f.kind) + '</span>' +
+        '<span class="val">' + val + '</span>' +
+        (isNew ? '<span class="badge-new">NEW</span>' : '') +
+        '<span class="conf ' + f.confidence + '">' + f.confidence + '</span></div>');
+    }
+    box.appendChild(card);
+  }
+  if (staticReport) setStatus('Звіт: ' + esc(target) + ' · ' + total + ' знахідок');
+}
+
+async function showReport(name) {
+  try {
+    const rep = await (await fetch(API + '/api/report/' + name)).json();
+    renderResults(rep.results, rep.generated ? name : rep.target, true);
+    buildGraph(rep.results);
+    window.scrollTo(0, 0);
+  } catch (e) { setStatus('Не вдалось завантажити звіт', true); }
+}
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.color = isErr ? 'var(--red)' : 'var(--dim)';
+}
+
+let adminTimer = null;
+
+// ------------------------- force graph ----------------------------------
+const GR = { inited: false, nodes: [], links: [] };
+function buildGraph(results) {
+  const PRIO = ['profile','channel','sanctions','exposure','identity',
+                'subdomains','whois','phone','live_hosts'];
+  const nodes = [{ id: '__target__', label: currentTarget().slice(0,24), type: 'target' }];
+  const links = [], ents = [];
+  for (const res of results.slice().sort((a,b)=>a.module.localeCompare(b.module))) {
+    nodes.push({ id: 'm|'+res.module, label: res.module, type: 'module' });
+    links.push({ source: '__target__', target: 'm|'+res.module });
+    for (const f of (res.findings||[])) {
+      if (ents.length >= 30 || !PRIO.includes(f.kind)) continue;
+      const label = String(f.value).split("\n")[0].slice(0,60);
+      if (!label) continue;
+      const eid = res.module + "|" + label;
+      if (!nodes.find(n=>n.id===eid)) {
+        nodes.push({ id: eid, label, type: "entity" });
+        ents.push(eid);
+      }
+      if (ents.includes(eid)) links.push({ source: "m|"+res.module, target: eid });
+    }
+  }
+  startGraph({ nodes, links });
+}
+function currentTarget(){ return document.getElementById("target").value.trim() || "?"; }
+function startGraph(data) {
+  const cv = document.getElementById("graph");
+  document.getElementById("graphWrap").style.display = "block";
+  if (!GR.inited) { initGraph(cv); GR.inited = true; }
+  GR.nodes = data.nodes.map(n => Object.assign({}, n, {
+    x: cv.width/2 + (Math.random()-.5)*300, y: cv.height/2 + (Math.random()-.5)*260,
+    vx:0, vy:0, drag:false,
+    r: n.type==="target" ? 26 : n.type==="module" ? 15 : 9 }));
+  const idx = {}; data.nodes.forEach((n,i)=>idx[n.id]=i);
+  GR.links = data.links.map(l => ({ s: idx[l.source], t: idx[l.target] }))
+                      .filter(l => l.s!==undefined && l.t!==undefined && l.s!==l.t);
+}
+function initGraph(cv) {
+  const ctx = cv.getContext("2d");
+  function resize(){ cv.width = cv.offsetWidth; cv.height = cv.offsetHeight; }
+  resize(); addEventListener("resize", resize);
+  let drag = null;
+  cv.addEventListener("mousedown", e => {
+    const b = cv.getBoundingClientRect();
+    const mx = e.clientX-b.left, my = e.clientY-b.top;
+    drag = GR.nodes.find(n => (mx-n.x)**2+(my-n.y)**2 < n.r*n.r+40) || null;
+    if (drag) drag.drag = true;
+  });
+  cv.addEventListener("mousemove", e => {
+    if (!drag) return;
+    const b = cv.getBoundingClientRect();
+    drag.x = e.clientX-b.left; drag.y = e.clientY-b.top;
+  });
+  addEventListener("mouseup", () => { if (drag) drag.drag=false; drag=null; });
+  const COL = { target:"#e6edf3", module:"#2f81f7", entity:"#d29922" };
+  (function loop(){
+    const W = cv.width, H = cv.height;
+    for (let i=0;i<GR.nodes.length;i++) for (let j=i+1;j<GR.nodes.length;j++) {
+      const a=GR.nodes[i], b=GR.nodes[j];
+      let dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy||1, d=Math.sqrt(d2);
+      if (d>340) continue;
+      const f = 2200/d2; dx/=d; dy/=d;
+      a.vx-=dx*f; a.vy-=dy*f; b.vx+=dx*f; b.vy+=dy*f;
+    }
+    for (const l of GR.links) {
+      const a=GR.nodes[l.s], b=GR.nodes[l.t];
+      let dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      const want=(a.type==="target"||b.type==="target")?130:90;
+      const f=(d-want)*.004; dx/=d; dy/=d;
+      a.vx+=dx*f*d*.06; a.vy+=dy*f*d*.06; b.vx-=dx*f*d*.06; b.vy-=dy*f*d*.06;
+    }
+    for (const n of GR.nodes) {
+      n.vx*=.85; n.vy*=.85;
+      if (!n.drag){ n.x+=n.vx; n.y+=n.vy; }
+      n.x=Math.max(n.r,Math.min(W-n.r,n.x)); n.y=Math.max(n.r,Math.min(H-n.r,n.y));
+    }
+    ctx.clearRect(0,0,W,H); ctx.strokeStyle="#30363d";
+    for (const l of GR.links){ ctx.beginPath(); ctx.moveTo(GR.nodes[l.s].x,GR.nodes[l.s].y);
+      ctx.lineTo(GR.nodes[l.t].x,GR.nodes[l.t].y); ctx.stroke(); }
+    for (const n of GR.nodes){
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,7);
+      ctx.fillStyle=COL[n.type]||"#888"; ctx.fill();
+      if (n.r>=15){ ctx.fillStyle="#0d1117";
+        ctx.font="bold "+Math.max(9,n.r*.55)+"px sans-serif";
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(n.label.slice(0,n.r>20?12:6),n.x,n.y);
+      } else { ctx.fillStyle="#8b949e"; ctx.font="10px sans-serif";
+        ctx.textAlign="center"; ctx.fillText(n.label.slice(0,22),n.x,n.y-n.r-5); }
+    }
+    requestAnimationFrame(loop);
+  })();
+}
+function adminOp(kind) {
+  const body = kind === 'leaks'
+    ? { path: document.getElementById('leakPath').value.trim() }
+    : { file: null };
+  if (kind === 'leaks' && !body.path) { setAdmin('error', 'Вкажи шлях'); return; }
+  fetch(API + '/api/admin/' + kind, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(() => {
+    setAdmin('running', 'виконується…');
+    clearInterval(adminTimer);
+    adminTimer = setInterval(async () => {
+      const s = await (await fetch(API + '/api/admin/status')).json();
+      setAdmin(s.state, s.message);
+      if (s.state !== 'running') clearInterval(adminTimer);
+    }, 1500);
+  }).catch(e => setAdmin('error', e.message));
+}
+function setAdmin(state, msg) {
+  const el = document.getElementById('adminStatus');
+  el.className = state === 'idle' ? '' : state;
+  el.textContent = state === 'idle' ? msg : state + ': ' + msg;
+}
+
+// ------------------------------ watches ---------------------------------
+function startWatch() {
+  const target = currentTarget();
+  if (!target) return;
+  const mods = [...document.querySelectorAll('#modules input:checked')].map(i => i.value);
+  fetch(API + '/api/watch', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ target, modules: mods, interval_min: 10 })
+  }).then(() => { setStatus('Моніторинг запущено для «' + target + '»'); loadWatches(); })
+    .catch(e => setStatus('Watch error: ' + e.message, true));
+}
+function stopWatch(id) {
+  fetch(API + '/api/watch/' + id, { method: 'DELETE' }).then(loadWatches);
+}
+async function loadWatches() {
+  try {
+    const h = await (await fetch(API + '/api/watches')).json();
+    const box = document.getElementById('watches');
+    if (!h.watches.length) { box.innerHTML = '<div class="empty">немає активних</div>'; return; }
+    box.innerHTML = '';
+    for (const w of h.watches) {
+      const row = document.createElement('div');
+      row.className = 'mod';
+      const badge = w.new > 0 ? '<span class="badge-new">+' + w.new + '</span>' : '';
+      row.innerHTML = '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:' +
+        'ellipsis;white-space:nowrap;font-size:12.5px">' + esc(w.target) +
+        ' ' + badge + '<br><span style="color:var(--dim);font-size:11px">кожні ' +
+        w.interval_min + 'хв · ' + w.findings + ' знахідок · ' + esc(w.last_run || w.status) +
+        '</span></span>';
+      const stop = document.createElement('button');
+      stop.className = 'mini'; stop.textContent = '✕';
+      stop.onclick = () => stopWatch(w.id);
+      row.appendChild(stop);
+      box.appendChild(row);
+    }
+  } catch {}
+}
+setInterval(loadWatches, 60000);
+function prog(on) {
+  document.getElementById('prog').style.visibility = on ? 'visible' : 'hidden';
+}
+init();
+</script>
+</body>
+</html>
