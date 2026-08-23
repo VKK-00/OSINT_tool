@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 import io
 import json
@@ -11,6 +10,7 @@ from pathlib import Path
 
 from .graph import analyze_case_graph
 from .output import (
+    SafeDictWriter,
     format_case_detail,
     format_case_graph_analysis,
     format_case_source_summary,
@@ -206,7 +206,7 @@ def format_cases_export_result(result: CasesExportResult, *, output_format: str 
 
 def _rows_csv(case_id: str, rows: object, fields: tuple[str, ...]) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=("case_id", *fields), lineterminator="\n")
+    writer = SafeDictWriter(buffer, fieldnames=("case_id", *fields), lineterminator="\n")
     writer.writeheader()
     if isinstance(rows, list):
         for row in rows:

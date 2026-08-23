@@ -19,16 +19,33 @@
 | `metadata` | dict[str, str] | додаткові сигнали (тільки рядки) |
 | `checked_at` | str | ISO-moment перевірки |
 
-### Статуси
+### Статуси: evidence vs observations
 
-- `planned` — dry-run, запит не робився;
-- `candidate` — знайдено/існує (підтвердження маркером чи статусом);
+Дві категорії з різною долею в evidence graph:
+
+**Evidence (створюють сутності й зв'язки):**
+
+- `candidate` — знайдено/існує;
+- `hit` — спрацював локальний індекс (sanctions/leaks);
+- `valid` — синтактично валідний вхід;
+- `reference` — curated джерело з source pack.
+
+**Observations (лише журнал перевірок, НЕ потрапляють у граф):**
+
+- `planned` — dry-run probe: URL сформовано, запит не робився;
 - `not_found` — перевірено і відсутнє;
-- `skipped` — не застосововано до цього таргета (правило платформи);
+- `skipped` — не застосовано / немає ключа;
 - `invalid` — таргет не нормалізувався;
-- `unknown` — запит був, відповідь неоднозначна (403/429/5xx тощо);
-- `error` — помилка виконання;
-- `hit` — спрацював локальний індекс (sanctions/leaks).
+- `unknown` — неоднозначна відповідь (403/429/5xx);
+- `error` — помилка виконання.
+
+Реалізація: `NON_EVIDENCE_STATUSES` / `EVIDENCE_STATUSES` у
+`osint_toolkit/entities.py`; фільтр застосовується і в
+`entities_from_findings`, і в `_edges_from_findings`. Це розділення
+probe / observation / assertion: запланований URL або відповідь
+«не знайдено» ніколи не перетворюється на твердження
+«username пов'язаний із платформою X» у графі кейса.
+
 
 ## Суміснісна модель osintkit (`osintkit.core.Finding`)
 

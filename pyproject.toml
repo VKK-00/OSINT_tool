@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "osint-toolkit"
-version = "0.1.0"
-description = "Local OSINT catalog navigator based on a curated GitHub OSINT snapshot"
+version = "0.3.0"
+description = "Case-centric OSINT workbench: unified engine, evidence graph and UA/RF public-source coverage"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
@@ -14,18 +14,29 @@ authors = [
 dependencies = [
   "httpx>=0.27",
   "pillow>=10.0",
+  "phonenumbers>=8.13",
+  "rich>=13.0",
+]
+
+[project.optional-dependencies]
+web = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+]
+all = [
+  "osint-toolkit[web,dev]",
 ]
 
 [project.scripts]
 osint-toolkit = "osint_toolkit.cli:main"
 osintkit = "osintkit.__main__:main"
 osintkit-web = "osintkit.webapp:main"
-
-[project.optional-dependencies]
-dev = [
-  "pytest>=8",
-  "ruff>=0.6",
-]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

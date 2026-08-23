@@ -19,5 +19,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install httpx phonenumbers rich pillow fastapi uvicorn pytest
+      - run: pip install -e ".[dev]"
       - run: python -m pytest -q
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build
+      # clean-install the built wheel exactly as a user would, then smoke-test
+      # every declared entry point against the installed metadata only.
+      - name: Clean-install wheel and smoke entry points
+        run: |
+          python -m venv clean-venv
+          clean-venv/bin/pip install --no-cache-dir dist/*.whl ".[web]"
+          clean-venv/bin/osint-toolkit stats
+          clean-venv/bin/python -c "from osintkit.modules.base import get_all; assert len(get_all()) >= 10"
+          clean-venv/bin/python -c "import osintkit.webapp; print('webapp imports ok')"

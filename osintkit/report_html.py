@@ -156,6 +156,22 @@ def _extract_entities(results: list[dict], cap: int = 36) -> list[dict]:
     return ents
 
 
+def _script_safe_json(payload) -> str:
+    """JSON that cannot break out of a <script> context.
+
+    A raw closing script tag inside any finding value would terminate the
+    script block and allow stored injection when the generated report is
+    opened. Escaping HTML-significant characters as unicode escapes keeps the
+    JSON valid for JS while neutralizing markup.
+    """
+    text = json.dumps(payload, ensure_ascii=False)
+    return (text
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026")
+            .replace("\u2028", "\\u2028")
+            .replace("\u2029", "\\u2029"))
+
 def render_html_report(target: str, results_dicts: list[dict],
                        generated: str = "", outdir: str = "out") -> str:
     safe = "".join(c if c.isalnum() or c in "@._-" else "_" for c in target)[:60]
@@ -218,8 +234,7 @@ def render_html_report(target: str, results_dicts: list[dict],
            .replace("__NMODS__", str(len(results_dicts)))
            .replace("__NHIGH__", str(n_high))
            .replace("__CARDS__", "".join(cards))
-           .replace("__DATA__", json.dumps({"nodes": nodes, "links": links},
-                                           ensure_ascii=False)))
+           .replace("__DATA__", _script_safe_json({"nodes": nodes, "links": links})))
     path.parent.mkdir(exist_ok=True)
     path.write_text(doc, encoding="utf-8")
     return str(path)

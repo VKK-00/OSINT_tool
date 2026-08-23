@@ -242,6 +242,16 @@ def build_parser() -> argparse.ArgumentParser:
     deep_sanctions_update.add_argument("--file", default=None, help="Build from a local CSV instead of downloading.")
     deep_sanctions_update.set_defaults(handler=handle_deep_sanctions_update)
 
+    deep_leaks_purge = subparsers.add_parser(
+        "deep-leaks-purge",
+        help="Retention helper: drop raw leak lines, or wipe the whole leak index.",
+    )
+    deep_leaks_purge.add_argument(
+        "--all", action="store_true",
+        help="Delete every indexed leak row (default: only the stored raw lines).",
+    )
+    deep_leaks_purge.set_defaults(handler=handle_deep_leaks_purge)
+
     toolbox = subparsers.add_parser("toolbox", help="Generate a local one-window OSINT toolbox.")
     toolbox.add_argument("--out", default="osint_toolbox.html", help="Output HTML path.")
     toolbox.add_argument("--open", action="store_true", help="Open the generated HTML file in the default browser.")
@@ -581,6 +591,21 @@ def handle_deep_sanctions_update(args: argparse.Namespace) -> int:
     stats = store.update_sanctions(
         url=args.url or store.SANCTIONS_CSV_URL, local_file=args.file)
     print(f"Sanctions index ready: {stats['indexed']} entities in {store.DB_PATH}")
+    return 0
+
+
+def handle_deep_leaks_purge(args: argparse.Namespace) -> int:
+    from osintkit import store
+
+    if args.all:
+        removed = store.purge_leaks_all()
+        print(f"Wiped {removed} indexed leak row(s) from {store.DB_PATH}")
+    else:
+        removed = store.purge_leaks_raw_lines()
+        print(
+            f"Removed {removed} stored raw line(s); extracted tokens kept. "
+            f"Use --all to wipe the whole index."
+        )
     return 0
 
 

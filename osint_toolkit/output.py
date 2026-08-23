@@ -14,6 +14,27 @@ from .models import OsintProject
 from .search import SearchPlan, SearchProfile
 
 
+def csv_safe_cell(value) -> str:
+    """Neutralize Excel/LibreOffice formula injection in exported cells.
+
+    A cell starting with = + - @ or a tab/CR can be interpreted as a formula
+    when the CSV is opened in a spreadsheet application. Prefixing an
+    apostrophe keeps the data readable while defusing execution.
+    """
+    text = str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + text
+    return text
+
+
+class SafeDictWriter(csv.DictWriter):
+    """DictWriter that applies csv_safe_cell to every emitted cell."""
+
+    def _dict_to_list(self, rowdict):
+        return [csv_safe_cell(value) for value in super()._dict_to_list(rowdict)]
+
+
+
 def format_projects(projects: Iterable[OsintProject], *, output_format: str, kind: str = "all") -> str:
     project_list = tuple(projects)
     if output_format == "json":
@@ -145,7 +166,7 @@ def format_finding_source_summary(
         return json.dumps(rows, ensure_ascii=False, indent=2)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "source",
@@ -341,7 +362,7 @@ def format_adapters(adapters: Iterable[AdapterSpec], *, output_format: str = "ta
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "repository",
@@ -404,7 +425,7 @@ def format_adapter_profiles(profiles: Iterable[AdapterProfile], *, output_format
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=("name", "title", "description", "target_kinds", "repositories", "note"),
             lineterminator="\n",
@@ -448,7 +469,7 @@ def format_search_profiles(profiles: Iterable[SearchProfile], *, output_format: 
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "name",
@@ -507,7 +528,7 @@ def format_search_profile_detail(profile: SearchProfile, *, output_format: str =
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=tuple(_search_profile_csv_row(profile).keys()),
             lineterminator="\n",
@@ -541,7 +562,7 @@ def format_adapter_setups(setups: Iterable[AdapterSetup], *, output_format: str 
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "repository",
@@ -660,7 +681,7 @@ def format_cases(cases: Iterable[CaseRecord], *, output_format: str = "table") -
         return "\n".join(lines)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "case_id",
@@ -1206,7 +1227,7 @@ def _projects_markdown(projects: tuple[OsintProject, ...], *, kind: str) -> str:
 
 def _projects_csv(projects: tuple[OsintProject, ...], *, kind: str) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=("rank", "full_name", "stars", "level", "focus", "language", "html_url", "description"),
         lineterminator="\n",
@@ -1230,7 +1251,7 @@ def _projects_csv(projects: tuple[OsintProject, ...], *, kind: str) -> str:
 
 def _findings_csv(findings: tuple[Finding, ...]) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=("module", "source", "target", "status", "url", "title", "http_status", "confidence", "evidence"),
         lineterminator="\n",
@@ -1270,7 +1291,7 @@ def _case_findings_csv(case_id: str, findings: list[object]) -> str:
         "checked_at",
         "metadata_json",
     )
-    writer = csv.DictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
+    writer = SafeDictWriter(buffer, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
     for raw in findings:
         if not isinstance(raw, dict):
@@ -1431,7 +1452,7 @@ def _singular_signal_kind(value: str) -> str:
 
 def _case_entity_index_csv(records: tuple[CaseEntityRecord, ...]) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=("kind", "value", "case_count", "cases"),
         lineterminator="\n",
@@ -1451,7 +1472,7 @@ def _case_entity_index_csv(records: tuple[CaseEntityRecord, ...]) -> str:
 
 def _case_entity_hits_csv(hits: tuple[CaseEntityHit, ...]) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=("case_id", "title", "saved_at", "kind", "value", "source", "confidence", "note"),
         lineterminator="\n",
@@ -1464,7 +1485,7 @@ def _case_entity_hits_csv(hits: tuple[CaseEntityHit, ...]) -> str:
 
 def _search_plan_csv(plan: SearchPlan) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=(
             "stage",

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import io
 import json
 import shlex
@@ -10,6 +9,7 @@ from dataclasses import dataclass
 
 from .adapter_setup import build_adapter_setup
 from .adapters import expand_adapter_repositories, find_adapter
+from .output import SafeDictWriter
 from .search import LOCAL_TOOLS, SearchProfile, find_search_profile
 
 INSTALLABLE_READINESS = {"missing"}
@@ -163,7 +163,7 @@ def format_tool_install_results(
         return json.dumps([row.to_dict() for row in results], ensure_ascii=False, indent=2)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=(
                 "kind",
@@ -258,7 +258,7 @@ def format_install_plan(rows: tuple[ToolReadiness, ...], *, output_format: str =
         return json.dumps([_install_row(row) for row in install_rows], ensure_ascii=False, indent=2)
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=("kind", "name", "readiness", "install", "required_env", "docs_url"),
             lineterminator="\n",
@@ -316,7 +316,7 @@ def format_env_plan(rows: tuple[ToolReadiness, ...], *, output_format: str = "ta
         )
     if output_format == "csv":
         buffer = io.StringIO()
-        writer = csv.DictWriter(
+        writer = SafeDictWriter(
             buffer,
             fieldnames=("kind", "name", "required_env", "missing_env", "optional_env"),
             lineterminator="\n",
@@ -519,7 +519,7 @@ def _command_args(command: str) -> tuple[str, ...]:
 
 def _rows_csv(rows: tuple[ToolReadiness, ...]) -> str:
     buffer = io.StringIO()
-    writer = csv.DictWriter(
+    writer = SafeDictWriter(
         buffer,
         fieldnames=(
             "kind",

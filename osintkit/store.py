@@ -6,6 +6,7 @@ Nothing is downloaded or indexed automatically.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import sqlite3
@@ -44,7 +45,14 @@ def _insert_batch(conn: sqlite3.Connection, batch: list[tuple]) -> None:
 
 
 def import_leaks(path: str) -> dict:
-    """Stream-import any text-ish dataset; extract emails/phones/handles."""
+    """Stream-import any text-ish dataset; extract emails/phones/handles.
+
+    Data minimization (default): the raw source line - which routinely
+    contains passwords, tokens and third-party data - is NOT stored. Only the
+    extracted token plus the source file path are kept. Opt in to raw context
+    with OSINTKIT_KEEP_RAW=1 when you genuinely need surrounding text.
+    """
+    keep_raw = os.environ.get("OSINTKIT_KEEP_RAW", "").strip() not in {"", "0", "false"}
     p = pathlib.Path(path)
     if p.is_dir():
         files = [f for f in sorted(p.rglob("*")) if f.is_file()]
@@ -72,16 +80,17 @@ def import_leaks(path: str) -> dict:
                     if not line:
                         continue
                     rows += 1
+                    stored_line = line[:500] if keep_raw else None
                     before = len(batch)
                     for m in EMAIL_RE.findall(line):
-                        batch.append((m.lower(), "email", line[:500], str(f)))
+                        batch.append((m.lower(), "email", stored_line, str(f)))
                     for m in PHONE_RE.findall(line):
                         digits = re.sub(r"\D", "", m)
                         if 10 <= len(digits) <= 15:
-                            batch.append((digits, "phone", line[:500], str(f)))
+                            batch.append((digits, "phone", stored_line, str(f)))
                     for m in HANDLE_RE.findall(line):
                         h = m.lstrip("@").lower()
-                        batch.append((h, "handle", line[:500], str(f)))
+                        batch.append((h, "handle", stored_line, str(f)))
                     tokens += len(batch) - before
                     if len(batch) >= 5000:
                         flush()
@@ -92,6 +101,28 @@ def import_leaks(path: str) -> dict:
     finally:
         conn.close()
     return {"files": len(files), "rows": total_rows, "tokens_indexed": total_tokens}
+
+
+def purge_leaks_raw_lines() -> int:
+    """Drop all stored raw leak lines (data-minimization / retention helper)."""
+    conn = _connect()
+    try:
+        cur = conn.execute("UPDATE leaks SET line = NULL WHERE line IS NOT NULL")
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def purge_leaks_all() -> int:
+    """Delete every indexed leak row (full retention wipe)."""
+    conn = _connect()
+    try:
+        cur = conn.execute("DELETE FROM leaks")
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
 
 
 def search_leaks(term: str, limit: int = 50) -> list[dict]:

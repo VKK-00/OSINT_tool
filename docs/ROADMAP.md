@@ -21,17 +21,19 @@
 - [x] Retry/backoff у HTTP-клієнті
 - [x] HTML-звіт з графом зв'язків
 
-## v0.3
+## v0.3 (поточний стан)
 - [x] Персо-OSINT збагачення з публічних джерел: GitHub/Mastodon/Bluesky профілі (username), Wikidata дізамбігуація осіб (person), Gravatar-профіль (email live)
 - [x] Доменна розвідка: Shodan InternetDB IP-exposure, Wayback CDX вік домену, urlScan history (за ключем оператора); UA/RF публічні реєстри в ru-ua source pack
 - [x] SOCMINT-глибина: останні публічні пости Mastodon та Bluesky author feed у live username-сканах
 - [x] Новий target kind `company`: GLEIF open lookup (ім'я або LEI) + профіль `company-safe`
 - [x] EXIF GPS + Overpass: найближчі іменовані OSM-об'єкти для верифікації геолокації фото
+- [x] Evidence-graph семантика: planned/not_found/skipped/error більше не створюють сутностей і зв'язків (probe/observation/assertion split)
+- [x] Веббезпека: токен лише заголовком, non-loopback bind потребує токен, script-safe JSON у HTML-звітах, CSV formula-defense
+- [x] Залежності оголошені повністю (base/web/dev extras), CI чисто встановлює wheel і smoke-тестить усі entry points
+- [x] Case store: guard від новішої схеми, lookup-індекси; leaks: raw lines вимкнені за замовчуванням, purge CLI
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
-- [ ] Моніторинг: diff між сканами каналу/профілю у часі
-- [ ] Інтеграція bellingcat auto-archiver для медіа
-- [ ] Веб-UI (FastAPI + проста мапа результатів)
-- [ ] Плагінний API для сторонніх модулів
+- [ ] Module registry: профілі обирають конкретні module IDs (з network_access/risk_tier/requires_key), а не тільки target kinds
+- [ ] Watch osintkit на спільних findings; єдине сховище index.db/cases.sqlite
 
 ## Ідеї
 - Зовнішні публічні джерела (InternetDB, Wayback CDX, Mastodon/Bluesky lookup, Overpass, GLEIF тощо) — пріоритезований план у [EXTERNAL_INTEGRATIONS.uk.md](EXTERNAL_INTEGRATIONS.uk.md)

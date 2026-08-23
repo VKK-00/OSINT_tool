@@ -541,6 +541,12 @@ class CaseStore:
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
+    stored_version = _stored_schema_version(conn)
+    if stored_version is not None and stored_version > int(SCHEMA_VERSION):
+        raise CaseStoreError(
+            f"Case DB was written by schema v{stored_version}, which is newer "
+            f"than this build supports (v{SCHEMA_VERSION}). Upgrade osint-toolkit."
+        )
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS metadata (
@@ -620,10 +626,36 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    # lookup indexes for the cross-case entity index, graph walks and listings
+    conn.executescript(
+        """
+        CREATE INDEX IF NOT EXISTS idx_entities_kind_value ON entities(kind, value);
+        CREATE INDEX IF NOT EXISTS idx_edges_case_source ON edges(case_id, source_kind, source_value);
+        CREATE INDEX IF NOT EXISTS idx_edges_case_target ON edges(case_id, target_kind, target_value);
+        CREATE INDEX IF NOT EXISTS idx_findings_case_status ON findings(case_id, status);
+        CREATE INDEX IF NOT EXISTS idx_targets_kind_value ON targets(kind, value);
+        CREATE INDEX IF NOT EXISTS idx_cases_saved_at ON cases(saved_at);
+        """
+    )
     conn.execute(
         "INSERT OR REPLACE INTO metadata(key, value) VALUES (?, ?)",
         ("schema_version", SCHEMA_VERSION),
     )
+
+
+def _stored_schema_version(conn: sqlite3.Connection) -> int | None:
+    try:
+        row = conn.execute(
+            "SELECT value FROM metadata WHERE key = ?", ("schema_version",)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None  # fresh database without the metadata table yet
+    if row is None:
+        return None
+    try:
+        return int(row["value"])
+    except (TypeError, ValueError):
+        return None
 
 
 def _case_filter_sql(

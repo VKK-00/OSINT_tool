@@ -33,11 +33,8 @@ def _web_token() -> str:
 async def token_guard(request, call_next):
     expected = _web_token()
     if expected and request.url.path.startswith("/api/"):
-        provided = (
-            request.headers.get("x-osintkit-token")
-            or request.query_params.get("token")
-            or ""
-        )
+        # header only: query-string tokens leak into history, logs and referrers
+        provided = request.headers.get("x-osintkit-token") or ""
         if provided != expected:
             from fastapi.responses import JSONResponse
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
@@ -418,6 +415,15 @@ def main() -> None:
     args = parser.parse_args()
     if args.token:
         os.environ["OSINTKIT_WEBAPP_TOKEN"] = args.token
+    if not _web_token():
+        host = (args.host or "").strip().lower()
+        loopback = host in {"", "127.0.0.1", "::1", "localhost"}
+        if not loopback:
+            parser.error(
+                f"refusing to bind non-loopback host '{args.host}' without a token. "
+                "Pass --token (or set OSINTKIT_WEBAPP_TOKEN) - the webapp exposes "
+                "administrative endpoints that accept local file paths."
+            )
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 
