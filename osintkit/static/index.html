@@ -108,6 +108,9 @@
   </div>
   <div id="adminStatus">індекси: leaks — локальні, sanctions — через CLI або кнопку вище</div>
 
+  <h2>Моніторинг</h2>
+  <div id="watches"><div class="empty">немає активних</div></div>
+
   <h2>Історія звітів</h2>
   <div id="history"><div class="empty">порожньо</div></div>
 </aside>
@@ -119,6 +122,8 @@
     <button class="run" id="runBtn" type="submit">Сканувати</button>
   </form>
   <div class="status" id="status"></div>
+  <button class="mini" id="watchBtn" style="display:none;margin-bottom:18px"
+          onclick="startWatch()">👁 Слідкувати за цим таргетом (рескан кожні 10 хв)</button>
   <div class="progress" id="prog"><i></i></div>
   <div id="graphWrap">
     <canvas id="graph"></canvas>
@@ -180,6 +185,7 @@ function runScan() {
   if (!mods.length) { setStatus('Увімкни хоча б один модуль', true); return; }
 
   document.getElementById('results').innerHTML = '';
+  document.getElementById('watchBtn').style.display = 'none';
   setStatus('Запуск скану «' + target + '» …');
   prog(true);
   document.getElementById('runBtn').disabled = true;
@@ -206,6 +212,7 @@ function poll(jobId) {
       document.getElementById('runBtn').disabled = false;
       buildGraph(j.results);
       loadHistory();
+      document.getElementById('watchBtn').style.display = 'inline-block';
     } else {
       setStatus('Сканування… модуль ' + Math.min(done+1,total) + '/' + total);
     }
@@ -381,6 +388,45 @@ function setAdmin(state, msg) {
   el.className = state === 'idle' ? '' : state;
   el.textContent = state === 'idle' ? msg : state + ': ' + msg;
 }
+
+// ------------------------------ watches ---------------------------------
+function startWatch() {
+  const target = currentTarget();
+  if (!target) return;
+  const mods = [...document.querySelectorAll('#modules input:checked')].map(i => i.value);
+  fetch(API + '/api/watch', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ target, modules: mods, interval_min: 10 })
+  }).then(() => { setStatus('Моніторинг запущено для «' + target + '»'); loadWatches(); })
+    .catch(e => setStatus('Watch error: ' + e.message, true));
+}
+function stopWatch(id) {
+  fetch(API + '/api/watch/' + id, { method: 'DELETE' }).then(loadWatches);
+}
+async function loadWatches() {
+  try {
+    const h = await (await fetch(API + '/api/watches')).json();
+    const box = document.getElementById('watches');
+    if (!h.watches.length) { box.innerHTML = '<div class="empty">немає активних</div>'; return; }
+    box.innerHTML = '';
+    for (const w of h.watches) {
+      const row = document.createElement('div');
+      row.className = 'mod';
+      const badge = w.new > 0 ? '<span class="badge-new">+' + w.new + '</span>' : '';
+      row.innerHTML = '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:' +
+        'ellipsis;white-space:nowrap;font-size:12.5px">' + esc(w.target) +
+        ' ' + badge + '<br><span style="color:var(--dim);font-size:11px">кожні ' +
+        w.interval_min + 'хв · ' + w.findings + ' знахідок · ' + esc(w.last_run || w.status) +
+        '</span></span>';
+      const stop = document.createElement('button');
+      stop.className = 'mini'; stop.textContent = '✕';
+      stop.onclick = () => stopWatch(w.id);
+      row.appendChild(stop);
+      box.appendChild(row);
+    }
+  } catch {}
+}
+setInterval(loadWatches, 60000);
 function prog(on) {
   document.getElementById('prog').style.visibility = on ? 'visible' : 'hidden';
 }

@@ -33,6 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("-o", "--out", default="out", help="Report output directory")
     scan.add_argument("--no-save", action="store_true", help="Do not write JSON report")
     scan.add_argument("-v", "--verbose", action="store_true")
+    scan.add_argument("--csv", action="store_true",
+                      help="Also export findings to CSV")
 
     variants = sub.add_parser("variants", help="Show transliteration variants of a handle")
     variants.add_argument("handle")
@@ -97,6 +99,26 @@ async def cmd_scan(args) -> int:
             console.print(f"[bold green]HTML report →[/] {html_path}")
         except Exception as exc:
             console.print(f"[yellow]HTML report failed: {exc}[/]")
+        if args.csv:
+            try:
+                import csv as csv_mod
+                import pathlib
+                csv_path = pathlib.Path(args.out) / (
+                    "report_" + "".join(
+                        c if c.isalnum() or c in "@._-" else "_"
+                        for c in args.target)[:60] + ".csv")
+                with open(csv_path, "w", encoding="utf-8-sig", newline="") as fh:
+                    wtr = csv_mod.writer(fh, delimiter=";")
+                    wtr.writerow(["module", "kind", "value", "confidence",
+                                  "url", "new"])
+                    for res in results:
+                        for f in res.findings:
+                            wtr.writerow([res.module, f.kind, f.value,
+                                          f.confidence, f.url,
+                                          bool(f.extra.get("new"))])
+                console.print(f"[bold green]CSV export →[/] {csv_path}")
+            except Exception as exc:
+                console.print(f"[yellow]CSV failed: {exc}[/]")
     total = sum(len(r.findings) for r in results)
     failed = [r.module for r in results if not r.ok]
     console.print(f"[bold]\n{total} finding(s)[/]" +

@@ -129,6 +129,90 @@ async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+# --------------------------------------------------------------- watches ----
+
+WATCHES: dict[str, dict] = {}
+_watch_seq = 0
+
+
+class WatchRequest(BaseModel):
+    target: str
+    modules: list[str] | None = None
+    interval_min: int = 10
+
+
+@app.post("/api/watch")
+async def add_watch(req: WatchRequest) -> dict:
+    global _watch_seq
+    req.target = req.target.strip()
+    if not req.target:
+        raise HTTPException(400, "empty target")
+    if len(WATCHES) >= 10:
+        raise HTTPException(400, "max 10 concurrent watches")
+    all_modules = {m.name: m for m in get_all()}
+    names = req.modules or list(all_modules)
+    unknown = [n for n in names if n not in all_modules]
+    if unknown:
+        raise HTTPException(400, f"unknown modules: {', '.join(unknown)}")
+    if not (1 <= req.interval_min <= 1440):
+        raise HTTPException(400, "interval must be 1..1440 minutes")
+    _watch_seq += 1
+    wid = f"w{_watch_seq}"
+    WATCHES[wid] = {"id": wid, "target": req.target, "modules": names,
+                    "interval_min": req.interval_min, "status": "starting",
+                    "last_run": "", "findings": 0, "new": 0, "error": ""}
+    asyncio.create_task(_watch_loop(wid))
+    return {"watch_id": wid}
+
+
+async def _watch_loop(wid: str) -> None:
+    """Re-scan the target on an interval; diff each run against the last."""
+    from osintkit.output import annotate_new
+    import datetime
+    while wid in WATCHES:
+        w = WATCHES[wid]
+        all_modules = {m.name: m for m in get_all()}
+        mods = [all_modules[n] for n in w["modules"] if n in all_modules]
+        collected = []
+        http = HttpClient()
+        try:
+            tasks = [asyncio.create_task(m.safe_run(w["target"], http))
+                     for m in mods]
+            for coro in asyncio.as_completed(tasks):
+                collected.append(await coro)
+        except Exception as exc:  # noqa: BLE001
+            w["error"] = f"{type(exc).__name__}: {exc}"
+        finally:
+            await http.aclose()
+        try:
+            n_new = annotate_new(w["target"], collected)
+        except Exception:
+            n_new = 0
+        w.update(status="ok",
+                 findings=sum(len(r.findings) for r in collected),
+                 new=n_new,
+                 last_run=datetime.datetime.now(
+                     datetime.timezone.utc).strftime("%H:%M:%S UTC"),
+                 error=w.get("error", ""))
+        for _ in range(max(1, int(w["interval_min"] * 12))):
+            if wid not in WATCHES:
+                return
+            await asyncio.sleep(5)
+
+
+@app.get("/api/watches")
+async def list_watches() -> dict:
+    keys = ("id", "target", "modules", "interval_min", "status",
+            "last_run", "findings", "new", "error")
+    return {"watches": [{k: w[k] for k in keys} for w in WATCHES.values()]}
+
+
+@app.delete("/api/watch/{wid}")
+async def del_watch(wid: str) -> dict:
+    WATCHES.pop(wid, None)
+    return {"deleted": True}
+
+
 # ------------------------------------------------------------ admin ops ----
 
 ADMIN: dict[str, str] = {"state": "idle", "message": ""}
