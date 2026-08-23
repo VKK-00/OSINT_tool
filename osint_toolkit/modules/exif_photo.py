@@ -1,7 +1,8 @@
 """EXIF photo forensics for image URLs (sync bridge).
 
 If the photo still carries EXIF GPS you get exact coordinates plus map
-links — historically the most fruitful artifact in conflict-photo checks.
+links, an OSM reverse-geocode and nearby named OpenStreetMap features
+(Overpass API) to verify the location against what is visible in the frame.
 A stripped-EXIF result is reported as information too.
 """
 from __future__ import annotations
@@ -14,10 +15,46 @@ from PIL.ExifTags import IFD
 
 from ..engine import Finding, RunConfig, ScanTarget
 
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+
 
 def _dms_to_deg(dms, ref: str) -> float:
     deg = float(dms[0]) + float(dms[1]) / 60 + float(dms[2]) / 3600
     return -deg if ref.strip() in ("S", "W") else deg
+
+
+def overpass_nearby_features(lat: float, lon: float, *, radius: int = 120, limit: int = 12) -> dict[str, str]:
+    """Named OSM features around coordinates - ground truth for photo checks."""
+    query = (
+        "[out:json][timeout:25];"
+        f"(node(around:{radius},{lat},{lon})[name];"
+        f"way(around:{radius},{lat},{lon})[name];);"
+        f"out tags {limit};"
+    )
+    resp = httpx.get(
+        OVERPASS_URL,
+        params={"data": query},
+        headers={"User-Agent": "osint-toolkit/0.1"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    payload = resp.json()
+    elements = payload.get("elements") if isinstance(payload, dict) else None
+    features: list[str] = []
+    for element in elements or []:
+        tags = element.get("tags") or {}
+        name = str(tags.get("name") or "").strip()
+        if not name:
+            continue
+        kind = next(
+            (tags[key] for key in ("highway", "building", "amenity", "shop", "landuse", "natural", "place") if tags.get(key)),
+            "feature",
+        )
+        features.append(f"{kind}: {name}")
+    return {
+        "nearby_feature_count": str(len(elements or [])),
+        "named_features": ", ".join(features[:limit]),
+    }
 
 
 class ExifPhotoModule:
@@ -94,6 +131,12 @@ class ExifPhotoModule:
                 except Exception as exc:  # noqa: BLE001
                     reverse_meta["reverse_error"] = str(exc)[:120]
 
+                nearby_meta: dict[str, str] = {}
+                try:
+                    nearby_meta = overpass_nearby_features(lat, lon)
+                except Exception as exc:  # noqa: BLE001
+                    nearby_meta["nearby_error"] = str(exc)[:120]
+
                 findings.append(Finding(
                     module=self.name, source="exif-gps", target=url,
                     status="hit", confidence="high",
@@ -104,6 +147,7 @@ class ExifPhotoModule:
                         # recognized by entities_from_findings -> graph node
                         "coordinates": q,
                         **reverse_meta,
+                        **nearby_meta,
                         "google_maps": "https://maps.google.com/?q=" + q,
                         "yandex_maps": ("https://yandex.ru/maps/?ll="
                                         + str(lon) + "%2C" + str(lat) + "&z=16"),

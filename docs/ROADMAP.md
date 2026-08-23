@@ -24,6 +24,9 @@
 ## v0.3
 - [x] Персо-OSINT збагачення з публічних джерел: GitHub/Mastodon/Bluesky профілі (username), Wikidata дізамбігуація осіб (person), Gravatar-профіль (email live)
 - [x] Доменна розвідка: Shodan InternetDB IP-exposure, Wayback CDX вік домену, urlScan history (за ключем оператора); UA/RF публічні реєстри в ru-ua source pack
+- [x] SOCMINT-глибина: останні публічні пости Mastodon та Bluesky author feed у live username-сканах
+- [x] Новий target kind `company`: GLEIF open lookup (ім'я або LEI) + профіль `company-safe`
+- [x] EXIF GPS + Overpass: найближчі іменовані OSM-об'єкти для верифікації геолокації фото
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
 - [ ] Моніторинг: diff між сканами каналу/профілю у часі
 - [ ] Інтеграція bellingcat auto-archiver для медіа

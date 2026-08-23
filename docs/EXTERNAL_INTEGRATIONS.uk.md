@@ -14,15 +14,19 @@
 | 3 | ✅ ЗРОБЛЕНО: Mastodon `GET /api/v1/accounts/lookup` → `modules/person_sources.MastodonLookupModule` | username live | Верифіковані display name, followers, created_at замість HTML-гадань | S |
 | 4 | ✅ ЗРОБЛЕНО: Bluesky AppView getProfile → `modules/person_sources.BlueskyProfileModule` | username live | Сучасна платформа, публічне API без auth | S |
 | 5 | ✅ ЗРОБЛЕНО: GitHub REST users → `modules/person_sources.GitHubUserModule` | username dossier (live) | name, bio, location, **public email**, created_at, repos/followers | S |
-| 6 | Overpass API (OpenStreetMap) | `exif_photo`/geo-напрямок | «Що поруч із координатами»: будинки, вежі, дороги — верифікація геолокації фото | M |
+| 6 | ✅ ЗРОБЛЕНО: Overpass API → `exif_photo.overpass_nearby_features` | image live з EXIF GPS | Іменовані OSM-об'єкти в радіусі 120 м — верифікація геолокації фото по місцевості | M |
 | 7 | ✅ ЗРОБЛЕНО: Wikidata (wbsearchentities + wbgetentities) → `modules/person_sources.WikidataPersonModule` | person pivot | Дізамбігуація публічних осіб: aliases, роки життя, опис. Findings = name-match only | M |
 
 Додатково зроблено:
 - Gravatar-профіль у live email-модулі (`gravatar-profile` source);
+- Mastodon останні публічні пости (`mastodon-posts`) та Bluesky author feed (`bluesky-feed`)
+  у live username-сканах;
 - urlScan.io search API → `modules/domain_intel.UrlscanSearchModule` — працює тільки
   з експортованим `URLSCAN_API_KEY` оператора, без ключа чесний `skipped`;
 - UA/RF публічні реєстри в ru-ua source pack (категорія `public-registry`):
-  UA Court Register, data.gov.ua + EDR open dataset, RF EGRUL, Fedresurs.
+  UA Court Register, data.gov.ua + EDR open dataset, RF EGRUL, Fedresurs;
+- ✅ GLEIF API → `modules/company_intel.GleifCompanyModule`: новий target kind
+  `company` (ім'я або LEI), профіль `company-safe` — початок компанійного напряму.
 
 ## Пріоритет 2 — безкоштовний ключ (operator надає сам)
 

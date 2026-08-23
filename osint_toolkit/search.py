@@ -24,6 +24,7 @@ TARGET_KINDS: tuple[str, ...] = (
     "instagram",
     "social",
     "ru-ua",
+    "company",
     "image",
 )
 
@@ -203,7 +204,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         title="Safe default fan-out",
         description="Native checks plus non-restricted adapters compatible with the target.",
         target_kinds=TARGET_KINDS,
-        native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua"),
+        native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"),
         adapter_profiles=("username-full", "email-safe", "phone-safe", "domain-recon", "url-archive"),
         local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
         derived_target_kinds=("domain", "username"),
@@ -214,7 +215,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         title="All safe configured tools",
         description="All currently non-restricted native modules, adapter profiles and local image tools.",
         target_kinds=TARGET_KINDS,
-        native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua"),
+        native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"),
         adapter_profiles=(
             "username-full",
             "username-ru-ua",
@@ -241,7 +242,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         ),
         target_kinds=TARGET_KINDS,
         native_kinds=("person", "username", "email", "phone", "domain", "url",
-                      "telegram", "instagram", "social", "ru-ua"),
+                      "telegram", "instagram", "social", "ru-ua", "company"),
         adapter_profiles=("url-archive",),
         note=("sanctions-index and deep-leaks need local indexes built once: "
               "python -m osintkit sanctions-update | leaks-import <path>."),
@@ -285,6 +286,18 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         target_kinds=("person",),
         native_kinds=("person", "username"),
         adapter_profiles=("username-full", "username-ru-ua"),
+    ),
+    SearchProfile(
+        name="company-safe",
+        title="Company public lookup",
+        description=(
+            "GLEIF open legal-entity search by name or LEI; pairs with the "
+            "UA/RF public registries in the ru-ua source pack."
+        ),
+        target_kinds=TARGET_KINDS,
+        native_kinds=("company",),
+        derived_target_kinds=(),
+        note="Keyless public API; registry pivots live in `scan ru-ua registry`.",
     ),
     SearchProfile(
         name="ru-ua-full",
@@ -663,6 +676,7 @@ def _default_profile_for_target(target_kind: str) -> str:
         "person": "person-full",
         "domain": "passive-recon",
         "url": "web-full",
+        "company": "company-safe",
         "image": "image-full",
         "telegram": "social-full",
         "instagram": "social-full",

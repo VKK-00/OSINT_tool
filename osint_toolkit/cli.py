@@ -115,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     show.set_defaults(handler=handle_show)
 
     scan = subparsers.add_parser("scan", help="Run native unified OSINT scan modules.")
-    scan.add_argument("target_kind", choices=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua"))
+    scan.add_argument("target_kind", choices=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"))
     scan.add_argument("target_value")
     scan.add_argument("--region", choices=("all", "ru", "ua"), default="all")
     scan.add_argument("--live", action="store_true", help="Perform network checks. Default is dry-run planning.")

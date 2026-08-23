@@ -13,6 +13,7 @@ from .modules import (
     UsernameScanModule,
     WebMetadataModule,
 )
+from .modules.company_intel import GleifCompanyModule
 from .modules.deep_leaks import DeepLeaksModule
 from .modules.deep_sanctions import SanctionsIndexModule
 from .modules.domain_intel import InternetDbModule, UrlscanSearchModule, WaybackCdxModule
@@ -50,5 +51,6 @@ def build_default_engine() -> Engine:
             InternetDbModule(),
             WaybackCdxModule(),
             UrlscanSearchModule(),
+            GleifCompanyModule(),
         ]
     )

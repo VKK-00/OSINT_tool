@@ -31,6 +31,14 @@ def _json_object(result) -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
+def _json_value(result):
+    """Parsed JSON of any shape (dict or list); None on parse failure."""
+    try:
+        return json.loads(result.body_text)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def _strip_html(value: str, *, limit: int = 300) -> str:
     text = re.sub(r"<[^>]+>", " ", value or "")
     return re.sub(r"\s+", " ", html_mod.unescape(text)).strip()[:limit]
@@ -196,7 +204,7 @@ class MastodonLookupModule:
             is_bot="yes" if payload.get("bot") else None,
             is_locked="yes" if payload.get("locked") else None,
         )
-        return (
+        findings: list[Finding] = [
             Finding(
                 module=self.name, source="mastodon-lookup", target=target.value,
                 status="candidate", url=str(payload.get("url") or url),
@@ -204,8 +212,56 @@ class MastodonLookupModule:
                 http_status=200, confidence="medium",
                 evidence=f"Public Mastodon account @{payload.get('acct') or user}@{instance} exists.",
                 metadata={"mastodon_instance": instance, **metadata},
-            ),
+            )
+        ]
+        posts_finding = _mastodon_recent_statuses(
+            client, str(instance), str(payload.get("id") or ""), target.value,
+            profile_url=str(payload.get("url") or f"https://{instance}/@{user}"),
         )
+        if posts_finding is not None:
+            findings.append(posts_finding)
+        return tuple(findings)
+
+
+def _mastodon_recent_statuses(
+    client: HttpClient,
+    instance: str,
+    account_id: str,
+    target: str,
+    *,
+    limit: int = 5,
+    profile_url: str = "",
+) -> Finding | None:
+    """Recent public posts of the account via the same-instance public API."""
+    if not account_id:
+        return None
+    url = f"https://{instance}/api/v1/accounts/{quote(account_id)}/statuses?limit={limit}"
+    try:
+        result = client.check(url)
+        payload = _json_value(result) if getattr(result, "status_code", None) == 200 else None
+    except Exception:  # noqa: BLE001 - post enrichment is best-effort
+        return None
+    if not isinstance(payload, list):
+        return None
+    rows = []
+    for post in payload:
+        if not isinstance(post, dict):
+            continue
+        text = _strip_html(str(post.get("content") or ""), limit=100)
+        created = str(post.get("created_at") or "")[:10]
+        rows.append(" | ".join(filter(None, (created, text))))
+    metadata = {
+        "fetched_post_count": str(len(rows)),
+        "recent_posts": " || ".join(rows),
+    }
+    return Finding(
+        module="mastodon-lookup", source="mastodon-posts", target=target,
+        status="candidate", url=profile_url or url,
+        http_status=result.status_code, confidence="low",
+        title=f"Recent public posts: {len(rows)} fetched",
+        evidence="Latest public statuses from the account's own instance API.",
+        metadata=metadata,
+    )
 
 
 def normalize_mastodon_acct(value: str) -> tuple[str, str] | None:
@@ -297,7 +353,7 @@ class BlueskyProfileModule:
             posts=payload.get("postsCount"),
             created_at=str(payload.get("createdAt") or "")[:10] or None,
         )
-        return (
+        findings: list[Finding] = [
             Finding(
                 module=self.name, source="appview-api", target=target.value,
                 status="candidate", url=f"https://bsky.app/profile/{payload.get('handle', actor)}",
@@ -305,8 +361,53 @@ class BlueskyProfileModule:
                 http_status=200, confidence="medium",
                 evidence=f"Bluesky account '{payload.get('handle', actor)}' exists.",
                 metadata={"bluesky_handle": str(payload.get("handle") or actor), **metadata},
-            ),
-        )
+            )
+        ]
+        feed_finding = _bluesky_recent_feed(client, actor, target.value)
+        if feed_finding is not None:
+            findings.append(feed_finding)
+        return tuple(findings)
+
+
+def _bluesky_recent_feed(
+    client: HttpClient, actor: str, target: str, *, limit: int = 5
+) -> Finding | None:
+    """Recent public posts via the public AppView author feed (no auth)."""
+    url = (
+        "https://api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?limit="
+        + str(limit)
+        + "&actor="
+        + quote(actor, safe="")
+    )
+    try:
+        result = client.check(url)
+        payload = _json_value(result) if getattr(result, "status_code", None) == 200 else None
+    except Exception:  # noqa: BLE001 - feed enrichment is best-effort
+        return None
+    if not isinstance(payload, dict) or not isinstance(payload.get("feed"), list):
+        return None
+    rows = []
+    for item in payload["feed"]:
+        post = item.get("post") if isinstance(item, dict) else None
+        record = post.get("record") if isinstance(post, dict) else None
+        if not isinstance(record, dict):
+            continue
+        text = _strip_html(str(record.get("text") or ""), limit=100)
+        created = str(record.get("createdAt") or "")[:10]
+        rows.append(" | ".join(filter(None, (created, text))))
+    if not rows:
+        return None
+    return Finding(
+        module="bluesky-profile", source="bluesky-feed", target=target,
+        status="candidate", url=f"https://bsky.app/profile/{actor}",
+        http_status=result.status_code, confidence="low",
+        title=f"Recent public posts: {len(rows)} fetched",
+        evidence="Latest public posts from the Bluesky AppView author feed.",
+        metadata={
+            "fetched_post_count": str(len(rows)),
+            "recent_posts": " || ".join(rows),
+        },
+    )
 
 
 @dataclass(frozen=True)

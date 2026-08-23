@@ -16,6 +16,7 @@ __all__ = [
     "DomainScanModule",
     "EmailScanModule",
     "GitHubUserModule",
+    "GleifCompanyModule",
     "InstagramPublicProfileModule",
     "InternetDbModule",
     "MastodonLookupModule",
