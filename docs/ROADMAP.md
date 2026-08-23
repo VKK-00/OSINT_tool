@@ -29,6 +29,7 @@
 - [ ] Плагінний API для сторонніх модулів
 
 ## Ідеї
+- Зовнішні публічні джерела (InternetDB, Wayback CDX, Mastodon/Bluesky lookup, Overpass, GLEIF тощо) — пріоритезований план у [EXTERNAL_INTEGRATIONS.uk.md](EXTERNAL_INTEGRATIONS.uk.md)
 - Пошук по судових реєстрах UA/RF (публічні API)
 - Інтеграція KartaView/Mapillary для вуличного рівня геолокації
 - Розпізнавання номерних знаків (локальна модель) для верифікації фото

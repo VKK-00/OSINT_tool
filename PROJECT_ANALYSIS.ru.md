@@ -25,7 +25,7 @@ CLI работает в пяти режимах:
 Первый native-слой уже выполняет:
 
 - person-name expansion: нормализация имени, RU/UA transliteration и username-кандидаты;
-- username public profile checks по 2014 активным URL/check-шаблонам: 38 curated правил, импорт Sherlock `data.json` GET/POST entries, импорт WhatsMyName `wmn-data.json` GET/POST entries и sanitized Maigret site rules, совместимые по классу задачи с Sherlock/Maigret/WhatsMyName/Nexfil;
+- username public profile checks по 2017 активным URL/check-шаблонам: 46 curated правил, импорт Sherlock `data.json` GET/POST entries, импорт WhatsMyName `wmn-data.json` GET/POST entries и sanitized Maigret site rules, совместимые по классу задачи с Sherlock/Maigret/WhatsMyName/Nexfil;
 - platform-specific username rules: несовместимые site checks возвращаются как `skipped`, без построения заведомо неверного URL;
 - content marker rules для live username checks: profile markers повышают confidence, soft-404 markers дают `not_found`;
 - email baseline checks: синтаксис, local-part profile hints, live domain resolution, MX/NS/TXT lookup, hosted provider attribution, certificate transparency domain correlation, SPF, DMARC, MTA-STS, TLS-RPT, BIMI и TXT service signal classification;
@@ -84,8 +84,13 @@ CLI работает в пяти режимах:
 - `data/osint_people_projects_2026-06-24.csv` — curated-срез OSINT по лицам.
 - `data/osint_ru_ua_projects_2026-06-24.csv` — curated-срез РФ/Украина/ru-platform.
 - `data/osint_people_ru_ua_2026-06-24.csv` — объединённая разметка people + ru/ua.
+- `data/top_100_osint_github_2026-06-24.{md,json}`, `data/osint_people_ru_ua_2026-06-24.{md,evidence.json}` — исследовательские снапшоты и evidence разметки.
 - `osint_toolkit/` — Python-пакет CLI.
 - `osint_toolkit/modules/` — native scan-модули.
+- `osint_toolkit/translit.py` — единая RU/UA транслитерация (используется обоими пакетами).
+- `osintkit/` — автономный deep-пакет (sanctions/leaks индексы, EXIF, веб-UI, watch); после консолидации его scan-модули являются bridge-делегированием к `osint_toolkit` (см. `docs/MIGRATION_OSINTKIT.uk.md`).
+- `docs/CONTRACT.md` — общий контракт данных/status/confidence для обоих пакетов.
+- `examples/` — примеры файлов для ручных проверок (например `t_exif.jpg`).
 - `osint_toolkit/environment.py` — Windows runtime env refresh для user/machine `PATH` и известных OSINT env variable names.
 - `osint_toolkit/search.py` — unified search profiles, target classifier и fan-out planner.
 - `osint_toolkit/toolbox.py` — генератор локального HTML-пульта с направлениями, шаблонами команд, optional backend runner UI, Case Browser, safe case management controls и bounded clickable SVG-визуализацией сохранённого графа.
