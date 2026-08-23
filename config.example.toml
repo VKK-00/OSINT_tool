@@ -1,0 +1,11 @@
+# Copy to config.toml (it is gitignored). All keys are optional —
+# modules degrade gracefully to free/public sources when a key is missing.
+[shodan]
+api_key = ""
+
+[hunter_io]
+api_key = ""
+
+# Local directory with user-supplied leak datasets for offline indexing
+[leaks]
+directory = ""
