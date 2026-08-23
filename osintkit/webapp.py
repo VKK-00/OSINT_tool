@@ -83,11 +83,14 @@ async def _run_job(job_id: str, modules, target: str) -> None:
             outdir.mkdir(exist_ok=True)
             safe = "".join(c if c.isalnum() or c in "@._-" else "_" for c in target)[:60]
             path = outdir / f"report_{safe}.json"
+            generated = __import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc).isoformat()
             path.write_text(json.dumps(
-                {"target": target, "generated": __import__("datetime").datetime.now(
-                    __import__("datetime").timezone.utc).isoformat(),
+                {"target": target, "generated": generated,
                  "results": job["results"]},
                 ensure_ascii=False, indent=2), encoding="utf-8")
+            from osintkit.report_html import render_html_report
+            render_html_report(target, job["results"], generated=generated)
         except Exception:
             pass
 

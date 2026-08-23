@@ -87,6 +87,16 @@ async def cmd_scan(args) -> int:
     if not args.no_save:
         path = save_report(args.target, results, args.out)
         console.print(f"\n[bold green]Report saved →[/] {path}")
+        try:
+            import json
+            from osintkit.report_html import render_html_report
+            data = json.loads(open(path, encoding="utf-8").read())
+            html_path = render_html_report(
+                args.target, data["results"],
+                generated=data.get("generated", ""), outdir=args.out)
+            console.print(f"[bold green]HTML report →[/] {html_path}")
+        except Exception as exc:
+            console.print(f"[yellow]HTML report failed: {exc}[/]")
     total = sum(len(r.findings) for r in results)
     failed = [r.module for r in results if not r.ok]
     console.print(f"[bold]\n{total} finding(s)[/]" +

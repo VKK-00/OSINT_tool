@@ -85,14 +85,24 @@ class HttpClient:
         import json
         return json.loads(await self.get_text(url, headers=headers))
 
-    async def head_or_get_status(self, url: str) -> tuple[int, str]:
-        """Return (status_code, first_bytes_of_body). Never raises on HTTP errors."""
-        await self._throttle()
-        try:
-            r = await self._client.get(url, headers=self.headers())
-            return r.status_code, r.text[:4096]
-        except Exception:
-            return -1, ""
+    async def head_or_get_status(self, url: str, retries: int = 1) -> tuple[int, str]:
+        """Return (status_code, first_bytes_of_body). Never raises.
+        One retry on transient failures (connection errors, 429, 5xx)."""
+        last_status, body = -1, ""
+        for attempt in range(retries + 1):
+            await self._throttle()
+            try:
+                r = await self._client.get(url, headers=self.headers())
+                if r.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                return r.status_code, r.text[:4096]
+            except Exception:
+                last_status, body = -1, ""
+                if attempt < retries:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+            break
+        return last_status, body
 
     async def aclose(self) -> None:
         await self._client.aclose()
