@@ -62,6 +62,7 @@ def run_investigation(
     person_aliases: tuple[str, ...] = (),
     adapter_repositories: tuple[str, ...] = (),
     native_kinds: tuple[str, ...] | None = None,
+    allowed_native_modules: tuple[str, ...] | None = None,
 ) -> InvestigationResult:
     engine = build_default_engine()
     config = RunConfig(
@@ -76,12 +77,20 @@ def run_investigation(
     )
     findings: list[Finding] = []
     for target in targets:
-        findings.extend(_native_scan(engine, target, config, native_kinds=native_kinds))
+        findings.extend(_native_scan(
+            engine, target, config,
+            native_kinds=native_kinds,
+            allowed_native_modules=allowed_native_modules,
+        ))
 
     person_candidate_context = _person_candidate_context(tuple(findings))
     scan_targets = _scan_targets_with_person_expansions(targets, tuple(findings))
     for target in scan_targets[len(targets) :]:
-        target_findings = _native_scan(engine, target, config, native_kinds=native_kinds)
+        target_findings = _native_scan(
+            engine, target, config,
+            native_kinds=native_kinds,
+            allowed_native_modules=allowed_native_modules,
+        )
         findings.extend(_annotate_person_candidate_findings(target, target_findings, person_candidate_context))
 
     adapter_findings: list[Finding] = []
@@ -129,10 +138,16 @@ def _native_scan(
     config: RunConfig,
     *,
     native_kinds: tuple[str, ...] | None,
+    allowed_native_modules: tuple[str, ...] | None = None,
 ) -> tuple[Finding, ...]:
     if native_kinds is not None and target.kind not in native_kinds:
         return ()
-    return engine.scan(target, config)
+    if allowed_native_modules is None:
+        return engine.scan(target, config)
+    allowed = set(allowed_native_modules)
+    selected = tuple(m for m in engine.modules if m.name in allowed)
+    filtered_engine = Engine(selected)
+    return filtered_engine.scan(target, config)
 
 
 def render_investigation_markdown(result: InvestigationResult) -> str:

@@ -36,6 +36,7 @@ class SearchProfile:
     description: str
     target_kinds: tuple[str, ...]
     native_kinds: tuple[str, ...] = ()
+    native_modules: tuple[str, ...] = ()
     adapter_profiles: tuple[str, ...] = ()
     adapter_repositories: tuple[str, ...] = ()
     local_tools: tuple[str, ...] = ()
@@ -51,6 +52,7 @@ class SearchProfile:
             "description": self.description,
             "target_kinds": list(self.target_kinds),
             "native_kinds": list(self.native_kinds),
+            "native_modules": list(self.native_modules),
             "adapter_profiles": list(self.adapter_profiles),
             "adapter_repositories": list(self.adapter_repositories),
             "local_tools": list(self.local_tools),
@@ -205,6 +207,28 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Native checks plus non-restricted adapters compatible with the target.",
         target_kinds=TARGET_KINDS,
         native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"),
+        native_modules=(
+        "username-public-profiles",
+        "person-name-expansion",
+        "email-baseline",
+        "phone-baseline",
+        "domain-baseline",
+        "web-metadata",
+        "telegram-baseline",
+        "instagram-public-profile",
+        "social-public-profile",
+        "ru-ua-source-pack",
+        "dorks",
+        "exif",
+        "github-user",
+        "mastodon-lookup",
+        "bluesky-profile",
+        "wikidata-person",
+        "internetdb-ip",
+        "wayback-cdx",
+        "urlscan-search",
+        "gleif-company",
+        ),
         adapter_profiles=("username-full", "email-safe", "phone-safe", "domain-recon", "url-archive"),
         local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
         derived_target_kinds=("domain", "username"),
@@ -216,6 +240,28 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="All currently non-restricted native modules, adapter profiles and local image tools.",
         target_kinds=TARGET_KINDS,
         native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"),
+        native_modules=(
+        "username-public-profiles",
+        "person-name-expansion",
+        "email-baseline",
+        "phone-baseline",
+        "domain-baseline",
+        "web-metadata",
+        "telegram-baseline",
+        "instagram-public-profile",
+        "social-public-profile",
+        "ru-ua-source-pack",
+        "dorks",
+        "exif",
+        "github-user",
+        "mastodon-lookup",
+        "bluesky-profile",
+        "wikidata-person",
+        "internetdb-ip",
+        "wayback-cdx",
+        "urlscan-search",
+        "gleif-company",
+        ),
         adapter_profiles=(
             "username-full",
             "username-ru-ua",
@@ -243,6 +289,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         target_kinds=TARGET_KINDS,
         native_kinds=("person", "username", "email", "phone", "domain", "url",
                       "telegram", "instagram", "social", "ru-ua", "company"),
+        native_modules=(),
         adapter_profiles=("url-archive",),
         note=("sanctions-index and deep-leaks need local indexes built once: "
               "python -m osintkit sanctions-update | leaks-import <path>."),
@@ -253,6 +300,9 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Phone baseline plus every currently compatible non-restricted phone adapter.",
         target_kinds=("phone",),
         native_kinds=("phone",),
+        native_modules=(
+        "phone-baseline",
+        ),
         adapter_profiles=("phone-safe", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
         excluded_repositories=("megadose/ignorant",),
@@ -264,6 +314,9 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Email DNS/auth baseline plus safe breach, reputation and account-discovery adapters.",
         target_kinds=("email",),
         native_kinds=("email",),
+        native_modules=(
+        "email-baseline",
+        ),
         adapter_profiles=("email-safe", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
         derived_target_kinds=("domain", "username"),
@@ -276,6 +329,12 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Native username checks plus global and RU/UA-aware username adapters.",
         target_kinds=("username",),
         native_kinds=("username",),
+        native_modules=(
+        "username-public-profiles",
+        "github-user",
+        "mastodon-lookup",
+        "bluesky-profile",
+        ),
         adapter_profiles=("username-full", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
     ),
@@ -285,6 +344,14 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Person name expansion followed by username-capable tools.",
         target_kinds=("person",),
         native_kinds=("person", "username"),
+        native_modules=(
+        "person-name-expansion",
+        "wikidata-person",
+        "username-public-profiles",
+        "github-user",
+        "mastodon-lookup",
+        "bluesky-profile",
+        ),
         adapter_profiles=("username-full", "username-ru-ua"),
     ),
     SearchProfile(
@@ -296,6 +363,9 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         ),
         target_kinds=TARGET_KINDS,
         native_kinds=("company",),
+        native_modules=(
+        "gleif-company",
+        ),
         derived_target_kinds=(),
         note="Keyless public API; registry pivots live in `scan ru-ua registry`.",
     ),
@@ -305,6 +375,10 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="RU/UA source pack and RU/UA-aware username/social routes.",
         target_kinds=("person", "username", "social", "telegram", "instagram", "ru-ua"),
         native_kinds=("person", "username", "social", "telegram", "instagram", "ru-ua"),
+        native_modules=(
+        "ru-ua-source-pack",
+        "dorks",
+        ),
         adapter_profiles=("username-ru-ua",),
     ),
     SearchProfile(
@@ -313,6 +387,11 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Domain/URL native recon plus passive upstream recon adapters.",
         target_kinds=("domain", "url"),
         native_kinds=("domain", "url"),
+        native_modules=(
+        "domain-baseline",
+        "wayback-cdx",
+        "urlscan-search",
+        ),
         adapter_profiles=("domain-recon", "url-archive"),
         derived_target_kinds=("domain",),
     ),
@@ -322,6 +401,13 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Domain/URL native recon plus passive and broad recon adapters.",
         target_kinds=("domain", "url"),
         native_kinds=("domain", "url"),
+        native_modules=(
+        "domain-baseline",
+        "web-metadata",
+        "wayback-cdx",
+        "internetdb-ip",
+        "urlscan-search",
+        ),
         adapter_profiles=("domain-recon", "bbot-passive-web", "bbot-passive-email", "broad-recon", "url-archive"),
         derived_target_kinds=("domain",),
     ),
@@ -330,6 +416,9 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         title="Image local analysis fan-out",
         description="Local metadata, OCR and QR/barcode tools for image-derived OSINT seeds.",
         target_kinds=("image",),
+        native_modules=(
+            "exif",
+        ),
         local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
         note="Face recognition and identity-by-face matching are not part of this profile.",
     ),
@@ -339,6 +428,15 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         description="Telegram, Instagram and RU social public metadata plus compatible username adapters.",
         target_kinds=("telegram", "instagram", "social", "username"),
         native_kinds=("telegram", "instagram", "social", "username"),
+        native_modules=(
+        "telegram-baseline",
+        "instagram-public-profile",
+        "social-public-profile",
+        "username-public-profiles",
+        "github-user",
+        "mastodon-lookup",
+        "bluesky-profile",
+        ),
         adapter_profiles=("username-full", "username-ru-ua"),
     ),
 )
@@ -405,6 +503,7 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
         "description",
         "target_kinds",
         "native_kinds",
+        "native_modules",
         "adapter_profiles",
         "adapter_repositories",
         "local_tools",
@@ -428,6 +527,7 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
     description = _optional_string(item, "description", default="", index=index)
     target_kinds = _string_tuple(item, "target_kinds", index=index, required=True)
     native_kinds = _string_tuple(item, "native_kinds", index=index)
+    native_modules = _string_tuple(item, "native_modules", index=index)
     adapter_profiles = _string_tuple(item, "adapter_profiles", index=index)
     adapter_repositories = _string_tuple(item, "adapter_repositories", index=index)
     local_tools = _string_tuple(item, "local_tools", index=index)
@@ -440,6 +540,7 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
 
     _validate_target_kinds(target_kinds, field="target_kinds", index=index)
     _validate_native_kinds(native_kinds, index=index)
+    _validate_native_modules(native_modules, index=index)
     _validate_adapter_profiles(adapter_profiles, index=index)
     _validate_adapter_repositories(adapter_repositories, field="adapter_repositories", index=index)
     _validate_local_tools(local_tools, index=index)
@@ -452,6 +553,7 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
         description=description,
         target_kinds=target_kinds,
         native_kinds=native_kinds,
+        native_modules=native_modules,
         adapter_profiles=adapter_profiles,
         adapter_repositories=adapter_repositories,
         local_tools=local_tools,
@@ -523,6 +625,18 @@ def _validate_native_kinds(values: tuple[str, ...], *, index: int) -> None:
     if unknown:
         raise ValueError(
             f"Search profile #{index + 1} field 'native_kinds' has unsupported native kind(s): {', '.join(unknown)}"
+        )
+
+
+def _validate_native_modules(values: tuple[str, ...], *, index: int) -> None:
+    from .runtime import MODULE_DESCRIPTOR_MAP
+
+    unknown = sorted(value for value in values if value not in MODULE_DESCRIPTOR_MAP)
+    if unknown:
+        known = ", ".join(sorted(MODULE_DESCRIPTOR_MAP))
+        raise ValueError(
+            f"Search profile #{index + 1} field 'native_modules' has unknown module id(s): "
+            f"{', '.join(unknown)}. Known modules: {known}"
         )
 
 
@@ -708,6 +822,59 @@ def _native_steps(target: ScanTarget, profile: SearchProfile) -> tuple[PlannedSt
                 command=_native_command(native_kind, value, target.region),
                 readiness="built_in",
                 reason=reason,
+            )
+        )
+        steps.extend(_module_steps(target, profile))
+    return tuple(steps)
+
+
+def _module_steps(target: ScanTarget, profile: SearchProfile) -> tuple[PlannedStep, ...]:
+    """One concrete step per registry module that will actually execute.
+
+    Profiles with an explicit native_modules selection list exactly those;
+    otherwise every registered module supporting the target kind is shown.
+    Readiness reflects key/index requirements so the plan never hides a
+    module that would silently no-op.
+    """
+    import os
+
+    from .runtime import MODULE_DESCRIPTOR_MAP, module_ids_for_kind
+
+    selected = profile.native_modules or module_ids_for_kind(target.kind)
+    steps: list[PlannedStep] = []
+    for module_id in selected:
+        descriptor = MODULE_DESCRIPTOR_MAP.get(module_id)
+        if descriptor is None or target.kind not in descriptor.target_kinds:
+            continue
+        if descriptor.requires_key and not os.environ.get(descriptor.key_env, "").strip():
+            readiness, note = "config_missing", f"requires {descriptor.key_env}"
+        elif descriptor.requires_index:
+            readiness, note = "manual", "requires a locally built index (see docs)"
+        else:
+            readiness, note = "ready", "built-in"
+        steps.append(
+            PlannedStep(
+                stage="native",
+                source=module_id,
+                title=f"{module_id} ({descriptor.risk_tier})",
+                target_kind=target.kind,
+                target_value=target.value,
+                status="planned",
+                command=f"scan {target.kind} <value> --live  # via {module_id}",
+                readiness=readiness,
+                reason=(
+                    f"network={descriptor.network_access}; "
+                    f"sensitivity={descriptor.data_sensitivity}; {note}"
+                ),
+                metadata={
+                    "module_id": module_id,
+                    "network_access": str(descriptor.network_access).lower(),
+                    "risk_tier": descriptor.risk_tier,
+                    "data_sensitivity": descriptor.data_sensitivity,
+                    "requires_index": str(descriptor.requires_index).lower(),
+                    "requires_key": str(descriptor.requires_key).lower(),
+                    "key_env": descriptor.key_env,
+                },
             )
         )
     return tuple(steps)

@@ -136,6 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
     adapters.add_argument("--format", choices=("table", "markdown", "csv", "json"), default="table")
     adapters.set_defaults(handler=handle_adapters)
 
+    modules_parser = subparsers.add_parser(
+        "modules",
+        help="Show the native module registry: targets, network access, risk tier, key/index requirements.",
+    )
+    modules_parser.add_argument("--kind", help="Filter by supported target kind, for example username or domain.")
+    modules_parser.add_argument("--format", choices=("table", "markdown", "json"), default="table")
+    modules_parser.set_defaults(handler=handle_modules)
+
     adapter_profiles = subparsers.add_parser("adapter-profiles", help="Show reusable adapter groups for investigations.")
     adapter_profiles.add_argument("--format", choices=("table", "markdown", "csv", "json"), default="table")
     adapter_profiles.set_defaults(handler=handle_adapter_profiles)
@@ -469,6 +477,42 @@ def handle_adapters(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_modules(args: argparse.Namespace) -> int:
+    from .runtime import MODULE_DESCRIPTORS
+
+    rows = [descriptor.to_dict() for descriptor in MODULE_DESCRIPTORS]
+    if args.kind:
+        rows = [row for row in rows if args.kind in row["target_kinds"]]
+    if args.format == "json":
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+    if args.format == "markdown":
+        header = "| Module ID | Targets | Network | Risk | Sensitivity | Index | Key |"
+        sep = "|---|---|---|---|---|---|---|"
+        lines = [header, sep]
+        for row in rows:
+            lines.append(
+                f"| {row['module_id']} | {', '.join(row['target_kinds'])} "
+                f"| {row['network_access']} | {row['risk_tier']} "
+                f"| {row['data_sensitivity']} | {row['requires_index']} "
+                f"| {row['key_env'] or '-'} |"
+            )
+        print("\n".join(lines))
+        return 0
+    for row in rows:
+        key = f" ({row['key_env']})" if row["key_env"] else ""
+        flags = []
+        if row["network_access"]:
+            flags.append("network")
+        if row["requires_index"]:
+            flags.append("index")
+        if row["requires_key"]:
+            flags.append("key")
+        print(f"{row['module_id']:<32} {', '.join(row['target_kinds']):<40} "
+              f"{row['risk_tier']:<8} {'/'.join(flags) or 'offline'}{key}")
+    return 0
+
+
 def handle_adapter_profiles(args: argparse.Namespace) -> int:
     print(format_adapter_profiles(list_adapter_profiles(), output_format=args.format))
     return 0
@@ -705,6 +749,7 @@ def handle_search(args: argparse.Namespace) -> int:
         adapter_workers=args.adapter_workers,
         adapter_repositories=executable_adapters,
         native_kinds=native_kinds_for_plan(plan),
+        allowed_native_modules=plan.profile.native_modules or None,
     )
     content = _render_search_execution(
         plan,

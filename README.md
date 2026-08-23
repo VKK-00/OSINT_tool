@@ -354,6 +354,18 @@ Native URL scan использует тот же bounded crawler: стартов
 
 Native Telegram module покрывает нормализацию `@handle`, `t.me/<handle>` и публичных post URLs. Native Instagram module покрывает нормализацию `@username`, `instagram.com/<username>/` и публичных media URLs `/p/`, `/reel/`, `/reels/`, `/tv/`; в `--live` режиме он извлекает только публичные page metadata: display name, account id, canonical/profile/media/external URLs, public counters и privacy/verification flags, если они есть в HTML/JSON страницы. Native social module покрывает RU social public profile wrappers для VK, OK, Yandex и Mail.ru: `vk:<identifier>`, `ok:<identifier>`, `mailru:<identifier>`, `mailru:<namespace>/<identifier>`, `yandex:q/<identifier>`, `yandex:market/<identifier>`, `yandex:reviews/<identifier>`, `yandex:zen/<identifier>` и прямые public URLs нормализуются в `social-profile` entities, а live-режим извлекает только public title/meta/canonical/image fields. Эти social-модули не делают login/session handling, private data access, follower scraping, comments/messages export, API-token enrichment или обход rate limits. RU/UA source-pack module отдаёт curated источники из текущей разметки top-100.
 
+### `modules`
+
+Реестр нативных модулей: какие target types поддерживает каждый, есть ли сетевой доступ в live-режиме, risk tier (passive/active), чувствительность данных и требования к индексу/ключу:
+
+```powershell
+python -m osint_toolkit modules                       # вся таблица
+python -m osint_toolkit modules --kind username       # фильтр по target kind
+python -m osint_toolkit modules --format json
+```
+
+Профили могут выбирать конкретные модули через поле `native_modules` в custom profile JSON (валидатор отвергает неизвестные module IDs). Если профиль не задаёт `native_modules`, выполняются все модули, совместимые с target kind. В `search --plan-only` теперь виден каждый конкретный модуль со своим readiness (`ready` / `config_missing` для ключей / `manual` для индексов).
+
 ### `adapters`
 
 Показывает карту интеграции upstream-проектов.
