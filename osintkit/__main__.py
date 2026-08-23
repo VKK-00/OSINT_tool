@@ -48,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     san.add_argument("--url", default=None, help="Custom CSV URL")
     san.add_argument("--file", default=None, help="Build from a local CSV instead")
 
+    rep = sub.add_parser("report",
+                         help="Regenerate HTML report from an existing JSON report")
+    rep.add_argument("json_path")
+
     return p
 
 
@@ -128,6 +132,12 @@ async def cmd_scan(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows legacy consoles default to cp1251 — our findings are Unicode
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "scan":
@@ -149,6 +159,22 @@ def main(argv: list[str] | None = None) -> int:
             stats = store.update_sanctions(url=args.url or store.SANCTIONS_CSV_URL,
                                            local_file=args.file)
         console.print(f"[green]Sanctions index ready:[/] {stats['indexed']} entities")
+        return 0
+    if args.command == "report":
+        import json
+        import pathlib
+        from osintkit.report_html import render_html_report
+        src = pathlib.Path(args.json_path)
+        if not src.exists():
+            console.print(f"[red]No such report:[/] {src}")
+            return 2
+        data = json.loads(src.read_text(encoding="utf-8"))
+        outdir = str(src.parent)
+        html_path = render_html_report(data.get("target", "?"),
+                                       data.get("results", []),
+                                       generated=data.get("generated", ""),
+                                       outdir=outdir)
+        console.print(f"[green]HTML report →[/] {html_path}")
         return 0
     parser.print_help()
     return 1

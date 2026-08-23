@@ -6,6 +6,7 @@ or    python -m osintkit.webapp
 from __future__ import annotations
 
 import asyncio
+import json
 import pathlib
 import uuid
 
@@ -133,6 +134,43 @@ async def index() -> FileResponse:
 
 WATCHES: dict[str, dict] = {}
 _watch_seq = 0
+WATCH_FILE = pathlib.Path("out") / "watches.json"
+
+
+def persist_watches() -> None:
+    try:
+        WATCH_FILE.parent.mkdir(exist_ok=True)
+        WATCH_FILE.write_text(json.dumps(
+            {wid: {k: w[k] for k in ("target", "modules", "interval_min")}
+             for wid, w in WATCHES.items()}, ensure_ascii=False),
+            encoding="utf-8")
+    except Exception:
+        pass
+
+
+def restore_watches() -> None:
+    global _watch_seq
+    try:
+        import json as _json
+        data = _json.loads(WATCH_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    for wid, cfg in data.items():
+        WATCHES[wid] = {"id": wid, "target": cfg["target"],
+                        "modules": cfg["modules"],
+                        "interval_min": cfg["interval_min"],
+                        "status": "restored", "last_run": "",
+                        "findings": 0, "new": 0, "error": ""}
+        try:
+            _watch_seq = max(_watch_seq, int(wid.lstrip("w")))
+        except ValueError:
+            pass
+        asyncio.create_task(_watch_loop(wid))
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    restore_watches()
 
 
 class WatchRequest(BaseModel):
@@ -161,6 +199,7 @@ async def add_watch(req: WatchRequest) -> dict:
     WATCHES[wid] = {"id": wid, "target": req.target, "modules": names,
                     "interval_min": req.interval_min, "status": "starting",
                     "last_run": "", "findings": 0, "new": 0, "error": ""}
+    persist_watches()
     asyncio.create_task(_watch_loop(wid))
     return {"watch_id": wid}
 
@@ -210,6 +249,7 @@ async def list_watches() -> dict:
 @app.delete("/api/watch/{wid}")
 async def del_watch(wid: str) -> dict:
     WATCHES.pop(wid, None)
+    persist_watches()
     return {"deleted": True}
 
 

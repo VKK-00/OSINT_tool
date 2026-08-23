@@ -55,6 +55,22 @@ class NetReconModule(Module):
         except Exception as exc:
             findings.append(Finding(kind="ip", source=self.name,
                                     value=f"RDAP failed: {exc}", confidence="low"))
+
+        # Reverse IP (free hackertarget API, rate-limited)
+        try:
+            body = await http.get_text(
+                f"https://api.hackertarget.com/reverseiplookup/?q={ip}")
+            hosts = [h.strip() for h in body.splitlines()
+                     if h.strip() and "error" not in h.lower()
+                     and "limit" not in h.lower()]
+            if hosts:
+                findings.append(Finding(
+                    kind="reverse_ip", source=self.name,
+                    value=f"{len(hosts)} host(s) share this IP",
+                    confidence="medium",
+                    extra={"domains": hosts[:30]}))
+        except Exception:
+            pass
         return findings
 
     async def _domain(self, domain: str, http: HttpClient) -> list[Finding]:

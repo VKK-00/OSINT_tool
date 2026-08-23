@@ -1,8 +1,9 @@
 """Email intelligence — passive, key-free checks.
 
-* Gravatar existence (MD5 of address)
+* Gravatar existence + public profile
 * XposedOrNot public breach API
-* Gravatar profile (public name/avatar) when present
+* Domain MX validation (does the mailbox domain even accept mail?)
+* Disposable/temp-mail domain detection
 """
 from __future__ import annotations
 
@@ -56,7 +57,43 @@ class EmailModule(Module):
         except Exception:
             pass
 
-        # Domain mail hints
+        # Domain mail validation + disposable detection
+        DISPOSABLE = {
+            "mailinator.com", "10minutemail.com", "guerrillamail.com",
+            "guerrillamail.net", "sharklasers.com", "grr.la", "yopmail.com",
+            "tempmail.com", "temp-mail.org", "throwawaymail.com",
+            "dispostable.com", "trashmail.com", "getnada.com", "nada.email",
+            "maildrop.cc", "fakeinbox.com", "mintemail.com", "tempinbox.com",
+            "mytemp.email", "emailondeck.com", "mailnesia.com",
+            "spamgourmet.com", "discard.email", "tempmailo.com",
+            "moakt.com", "mohmal.com", "email-temp.com",
+        }
+        dlow = domain.lower().strip()
+        if dlow in DISPOSABLE:
+            findings.append(Finding(
+                kind="email", source=self.name,
+                value=f"DISPOSABLE email domain ({dlow}) — likely throwaway",
+                confidence="high"))
+        try:
+            mx = await http.get_json(
+                f"https://dns.google/resolve?name={domain}&type=MX")
+            mxvals = [a.get("data", "") for a in mx.get("Answer", [])]
+            if mxvals:
+                findings.append(Finding(
+                    kind="email", source=self.name,
+                    value=f"Domain accepts mail: " + ", ".join(
+                        v.split(" ")[-1].rstrip(".") for v in mxvals[:4]),
+                    confidence="medium",
+                    extra={"mx": [v for v in mxvals[:6]]}))
+            else:
+                findings.append(Finding(
+                    kind="email", source=self.name,
+                    value="Domain has NO MX record — address cannot receive mail",
+                    confidence="medium"))
+        except Exception:
+            pass
+
+        # Domain pivot
         findings.append(Finding(kind="lead", source=self.name,
                                 value=f"Domain to pivot on: {domain}",
                                 confidence="low",
