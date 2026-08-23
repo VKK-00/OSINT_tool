@@ -50,9 +50,19 @@ class ModuleResult:
 
 
 class HttpClient:
-    """Thin async HTTP layer: UA rotation, timeouts, polite rate limiting."""
+    """Thin async HTTP layer: UA rotation, timeouts, polite rate limiting.
 
-    def __init__(self, timeout: float = 15.0, rps: float = 4.0):
+    Default RPS can be tuned with the OSINTKIT_RPS environment variable
+    (e.g. OSINTKIT_RPS=8 for faster username sweeps on a good connection).
+    """
+
+    def __init__(self, timeout: float = 15.0, rps: float | None = None):
+        import os
+        if rps is None:
+            try:
+                rps = float(os.environ.get("OSINTKIT_RPS", "4"))
+            except ValueError:
+                rps = 4.0
         import httpx
         self._httpx = httpx
         self._client = httpx.AsyncClient(

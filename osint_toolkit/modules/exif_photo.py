@@ -72,6 +72,28 @@ class ExifPhotoModule:
                 lat = _dms_to_deg(gps_ifd[2], str(gps_ifd.get(1, "N")))
                 lon = _dms_to_deg(gps_ifd[4], str(gps_ifd.get(3, "E")))
                 q = f"{lat:.6f},{lon:.6f}"
+
+                # close the loop: coordinates -> country entity via Nominatim
+                reverse_meta: dict[str, str] = {}
+                try:
+                    rev = httpx.get(
+                        "https://nominatim.openstreetmap.org/reverse",
+                        params={"lat": lat, "lon": lon, "format": "jsonv2",
+                                "zoom": 8, "accept-language": "en"},
+                        headers={"User-Agent": config.user_agent},
+                        timeout=config.timeout,
+                    )
+                    rev.raise_for_status()
+                    addr = (rev.json().get("address") or {})
+                    cc = str(addr.get("country_code", "")).upper()
+                    place = (addr.get("country") or
+                             rev.json().get("display_name", ""))[:80]
+                    if cc:
+                        reverse_meta["country"] = cc
+                        reverse_meta["location"] = place
+                except Exception as exc:  # noqa: BLE001
+                    reverse_meta["reverse_error"] = str(exc)[:120]
+
                 findings.append(Finding(
                     module=self.name, source="exif-gps", target=url,
                     status="hit", confidence="high",
@@ -81,6 +103,7 @@ class ExifPhotoModule:
                     metadata={
                         # recognized by entities_from_findings -> graph node
                         "coordinates": q,
+                        **reverse_meta,
                         "google_maps": "https://maps.google.com/?q=" + q,
                         "yandex_maps": ("https://yandex.ru/maps/?ll="
                                         + str(lon) + "%2C" + str(lat) + "&z=16"),
