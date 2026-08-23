@@ -227,6 +227,21 @@ def build_parser() -> argparse.ArgumentParser:
     brief.add_argument("--out", required=True, help="Output Markdown path.")
     brief.set_defaults(handler=handle_brief)
 
+    deep_leaks_import = subparsers.add_parser(
+        "deep-leaks-import",
+        help="Index a local leak dataset file/dir into the osintkit sqlite index.",
+    )
+    deep_leaks_import.add_argument("path", help="Leak dataset file or directory.")
+    deep_leaks_import.set_defaults(handler=handle_deep_leaks_import)
+
+    deep_sanctions_update = subparsers.add_parser(
+        "deep-sanctions-update",
+        help="Download OpenSanctions simplecsv and build the local sanctions index.",
+    )
+    deep_sanctions_update.add_argument("--url", default=None, help="Custom CSV URL.")
+    deep_sanctions_update.add_argument("--file", default=None, help="Build from a local CSV instead of downloading.")
+    deep_sanctions_update.set_defaults(handler=handle_deep_sanctions_update)
+
     toolbox = subparsers.add_parser("toolbox", help="Generate a local one-window OSINT toolbox.")
     toolbox.add_argument("--out", default="osint_toolbox.html", help="Output HTML path.")
     toolbox.add_argument("--open", action="store_true", help="Open the generated HTML file in the default browser.")
@@ -545,6 +560,27 @@ def handle_brief(args: argparse.Namespace) -> int:
     content = render_brief(profile, projects, target_value=args.target_value, region=args.region)
     path = write_brief(args.out, content)
     print(f"Wrote {path}")
+    return 0
+
+
+def handle_deep_leaks_import(args: argparse.Namespace) -> int:
+    from osintkit import store
+
+    stats = store.import_leaks(args.path)
+    print(
+        f"Indexed {stats['files']} file(s), {stats['rows']} rows, "
+        f"{stats['tokens_indexed']} tokens into {store.DB_PATH}"
+    )
+    return 0
+
+
+def handle_deep_sanctions_update(args: argparse.Namespace) -> int:
+    from osintkit import store
+
+    print("Building sanctions index (this can take a while)...")
+    stats = store.update_sanctions(
+        url=args.url or store.SANCTIONS_CSV_URL, local_file=args.file)
+    print(f"Sanctions index ready: {stats['indexed']} entities in {store.DB_PATH}")
     return 0
 
 

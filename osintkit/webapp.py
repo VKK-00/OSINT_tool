@@ -100,22 +100,91 @@ async def _run_job(job_id: str, modules, target: str) -> None:
         if n_new:
             job["new_count"] = n_new
             job["results"] = [r.as_dict() for r in collected]
-        try:
-            import json
-            outdir = pathlib.Path("out")
-            outdir.mkdir(exist_ok=True)
-            safe = "".join(c if c.isalnum() or c in "@._-" else "_" for c in target)[:60]
-            path = outdir / f"report_{safe}.json"
-            generated = __import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc).isoformat()
-            path.write_text(json.dumps(
-                {"target": target, "generated": generated,
-                 "results": job["results"]},
-                ensure_ascii=False, indent=2), encoding="utf-8")
-            from osintkit.report_html import render_html_report
-            render_html_report(target, job["results"], generated=generated)
-        except Exception:
-            pass
+        _save_report_files(target, job["results"])
+        save_case_from_results(target, collected)
+
+
+def _save_report_files(target: str, results: list[dict]) -> None:
+    try:
+        outdir = pathlib.Path("out")
+        outdir.mkdir(exist_ok=True)
+        safe = "".join(c if c.isalnum() or c in "@._-" else "_" for c in target)[:60]
+        path = outdir / f"report_{safe}.json"
+        generated = __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat()
+        path.write_text(json.dumps(
+            {"target": target, "generated": generated,
+             "results": results},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+        from osintkit.report_html import render_html_report
+        render_html_report(target, results, generated=generated)
+    except Exception:
+        pass
+
+
+def case_db_path() -> pathlib.Path:
+    """Shared SQLite case DB (same store the unified CLI writes to)."""
+    outdir = pathlib.Path("out")
+    outdir.mkdir(exist_ok=True)
+    return outdir / "cases.sqlite"
+
+
+def save_case_from_results(target: str, results: list) -> str | None:
+    """Persist a finished scan into the shared osint_toolkit case store.
+
+    Best-effort: a failing case write must never break the scan job itself.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        from osint_toolkit.case_store import CaseStore
+        from osint_toolkit.engine import Finding as EngineFinding
+        from osint_toolkit.engine import ScanTarget
+        from osint_toolkit.entities import (
+            entities_from_findings,
+            entities_from_targets,
+            merge_entities,
+        )
+        from osint_toolkit.graph import graph_edges_from_case
+        from osint_toolkit.investigation import InvestigationResult
+        from osintkit.bridge import classify_target, core_to_engine
+
+        engine_findings: list[EngineFinding] = []
+        for result in results:
+            engine_findings.extend(
+                core_to_engine(finding, target=target)
+                for finding in result.findings
+            )
+        targets = (ScanTarget(kind=classify_target(target), value=target),)
+        findings = tuple(engine_findings)
+        entities = merge_entities(
+            entities_from_targets(targets),
+            entities_from_findings(findings),
+        )
+        edges = graph_edges_from_case(targets, findings, entities)
+        generated_at = datetime.now(timezone.utc).isoformat()
+        case = InvestigationResult(
+            title=f"osintkit scan: {target}",
+            targets=targets,
+            findings=findings,
+            adapter_findings=(),
+            entities=entities,
+            edges=edges,
+            generated_at=generated_at,
+        )
+        case_id = f"osintkit-{uuid.uuid4().hex[:12]}"
+        CaseStore(case_db_path()).save(
+            case,
+            case_id=case_id,
+            metadata={
+                "source": "osintkit-webapp",
+                "workflow": "scan",
+                "modules": ",".join(sorted({r.module for r in results})),
+            },
+        )
+        return case_id
+    except Exception:
+        return None
 
 
 @app.get("/api/job/{job_id}")
@@ -145,6 +214,27 @@ async def get_report(name: str) -> dict:
         raise HTTPException(404, "not found")
     import json
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+@app.get("/api/cases")
+async def cases_list() -> dict:
+    """Saved cases from the shared osint_toolkit case store."""
+    from osint_toolkit.case_store import CaseStore
+
+    store = CaseStore(case_db_path())
+    summaries = store.list_cases(limit=50)
+    return {"cases": [s.to_dict() for s in summaries]}
+
+
+@app.get("/api/cases/{case_id}")
+async def case_detail(case_id: str) -> dict:
+    from osint_toolkit.case_store import CaseStore, CaseStoreError
+
+    store = CaseStore(case_db_path())
+    try:
+        return store.load_case(case_id)
+    except CaseStoreError as exc:
+        raise HTTPException(404, "no such case") from exc
 
 
 @app.get("/")

@@ -1,54 +1,67 @@
-"""Username enumeration across social platforms (UA/RF-weighted site list).
+"""Username enumeration across social platforms (bridge -> osint_toolkit).
 
-Detection strategy per platform:
-  * status-code based (404 => free, 200 => taken), plus
-  * optional body heuristic (a "page not found" marker) to catch soft-404s.
+The site database (Sherlock/WhatsMyName/Maigret import + curated UA/RF
+additions) and the per-site classification live in osint_toolkit now. This
+legacy module keeps its UA/RF-weighted curated subset, transliterated handle
+variants and the variant confidence downgrade — but delegates every HTTP
+check to the unified engine module.
 """
 from __future__ import annotations
 
-import dataclasses
+import asyncio
 
-from osintkit.core import Finding, HttpClient, transliterate
+from osintkit.bridge import build_run_config
+from osintkit.core import Finding, HttpClient
 from osintkit.modules.base import Module, register
 
+# url_templates of the curated UA/RF-weighted subset (single source of sites:
+# osint_toolkit.sites.USERNAME_SITES).
+CURATED_TEMPLATES: tuple[str, ...] = (
+    "https://vk.com/{username}",
+    "https://ok.ru/{username}",
+    "https://t.me/{username}",
+    "https://habr.com/ru/users/{username}/",
+    "https://dtf.ru/u/{username}",
+    "https://career.habr.com/{username}",
+    "https://github.com/{username}",
+    "https://www.instagram.com/{username}/",
+    "https://www.tiktok.com/@{username}",
+    "https://x.com/{username}",
+    "https://www.reddit.com/user/{username}",
+    "https://www.youtube.com/@{username}",
+    "https://steamcommunity.com/id/{username}/",
+    "https://m.twitch.tv/{username}",
+    "https://soundcloud.com/{username}",
+    "https://www.pinterest.com/{username}/",
+    "https://www.flickr.com/people/{username}/",
+    "https://www.deviantart.com/{username}",
+    "https://www.roblox.com/users/profile?username={username}",
+    "https://open.spotify.com/user/{username}",
+    "https://mastodon.social/@{username}",
+    "https://gitlab.com/{username}",
+    "https://medium.com/@{username}",
+    "https://keybase.io/{username}",
+    "https://www.last.fm/user/{username}",
+)
 
-@dataclasses.dataclass
-class Site:
-    name: str
-    url: str                 # {} replaced by handle
-    not_found_marker: str = ""   # if this string is in the body -> profile absent
-    confidence: str = "high"
+_DOWNGRADE = {"high": "medium", "medium": "low", "low": "low"}
 
 
-SITES: list[Site] = [
-    # --- UA/RF priority networks ---
-    Site("VK", "https://vk.com/{}", "Страница не найдена"),
-    Site("OK.ru", "https://ok.ru/{}", 'class="profile"'),
-    Site("Telegram", "https://t.me/{}", "If you have Telegram, you can contact"),
-    Site("Habr", "https://habr.com/ru/users/{}/", "Can't find"),
-    Site("DTF", "https://dtf.ru/u/{}", ""),
-    # --- Global majors ---
-    Site("GitHub", "https://github.com/{}", "Not Found"),
-    Site("Instagram", "https://www.instagram.com/{}/", "Page Not Found", "medium"),
-    Site("TikTok", "https://www.tiktok.com/@{}", "", "medium"),
-    Site("X/Twitter", "https://x.com/{}", "", "medium"),
-    Site("Reddit", "https://www.reddit.com/user/{}/about.json", '"error": 404'),
-    Site("YouTube", "https://www.youtube.com/@{}", "This page isn't available", "medium"),
-    Site("Steam", "https://steamcommunity.com/id/{}/", "Steam Community :: Error"),
-    Site("Twitch", "https://m.twitch.tv/{}", "", "low"),
-    Site("SoundCloud", "https://soundcloud.com/{}", "", "medium"),
-    Site("Pinterest", "https://www.pinterest.com/{}/", "", "medium"),
-    Site("Flickr", "https://www.flickr.com/people/{}", "", "medium"),
-    Site("DeviantArt", "https://www.deviantart.com/{}", "Not Found", "medium"),
-    Site("Roblox", "https://www.roblox.com/users/profile?username={}", "", "low"),
-    Site("Spotify", "https://open.spotify.com/user/{}", "", "medium"),
-    Site("Mastodon (mastodon.social)", "https://mastodon.social/@{}", "The page you are looking for isn't here"),
-    Site("GitLab", "https://gitlab.com/{}", ""),
-    Site("Medium", "https://medium.com/@{}", ""),
-    Site("Keybase", "https://keybase.io/{}", ""),
-    Site("Last.fm", "https://www.last.fm/user/{}", "Whoops // Sorry, but something went wrong"),
-    Site("Habr Career", "https://career.habr.com/{}", ""),
-]
+def curated_sites() -> tuple:
+    """The curated UsernameSite subset, in CURATED_TEMPLATES order."""
+    from osint_toolkit.sites import USERNAME_SITES
+
+    by_template = {site.url_template: site for site in USERNAME_SITES}
+    return tuple(by_template[t] for t in CURATED_TEMPLATES if t in by_template)
+
+
+def _scan_handle(handle: str):
+    from osint_toolkit.engine import ScanTarget
+    from osint_toolkit.modules.username import UsernameScanModule
+
+    config = build_run_config(min_request_delay=0.1)
+    return UsernameScanModule(sites=curated_sites()).scan(
+        ScanTarget(kind="username", value=handle), config)
 
 
 @register
@@ -64,68 +77,36 @@ class UsernameModule(Module):
         return True
 
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
-        import asyncio
-        import re
-
-        def enrich(site: Site, body: str) -> dict:
-            """Pull og:title / page title from captured HTML when possible."""
-            extra: dict = {}
-            m = re.search(r'<meta property="og:title" content="([^"]*)"', body)
-            if m and m.group(1).strip() and "telegram" not in m.group(1).lower():
-                extra["title"] = m.group(1).strip()[:120]
-            else:
-                m2 = re.search(r"<title>([^<]{3,120})</title>", body)
-                if m2 and site.name != "Telegram":
-                    t = m2.group(1).strip()
-                    if not re.search(r"not found|error", t, re.I):
-                        extra["title"] = t[:120]
-            return extra
-
-        GENERIC_TITLES = {
-            "twitch", "spotify – web player", "tiktok - make your day",
-            "steam community :: error", "just a moment...", "page not found",
-        }
-
-        async def check(site: Site, handle: str):
-            url = site.url.replace("{}", handle)
-            status, body = await http.head_or_get_status(url)
-            if status != 200:
-                return None
-            low_body = body.lower()
-            if site.name == "Telegram":
-                # t.me/<user> shows "contact @handle" both for existing users;
-                # absence of the alias means nothing there.
-                if ("@" + handle.lower()) not in low_body:
-                    return None
-            if site.not_found_marker and site.not_found_marker in body:
-                return None
-            extra = {"handle": handle}
-            extra.update(enrich(site, body))
-            title_low = extra.get("title", "").lower().strip()
-            if title_low in GENERIC_TITLES:
-                return None          # SPA shell / error page — not a profile
-            value = f"{site.name}: '{handle}' exists"
-            if extra.get("title"):
-                value += " — " + extra["title"]
-            return Finding(
-                kind="profile",
-                source=f"{site.name} ({self.name})",
-                value=value,
-                confidence=site.confidence,
-                url=url,
-                extra=extra,
-            )
+        from osint_toolkit.translit import transliterate
 
         handles = [target] + transliterate(target)
         results_raw = await asyncio.gather(*[
-            check(s, h) for h in handles for s in SITES])
-        out = []
+            asyncio.to_thread(_scan_handle, handle) for handle in handles])
+
+        out: list[Finding] = []
         variant_handles = set(handles[1:])
-        for r in results_raw:
-            if r is None:
-                continue
-            if r.extra.get("handle") in variant_handles:
-                r.confidence = {"high": "medium", "medium": "low",
-                                "low": "low"}[r.confidence]
-            out.append(r)
+        for handle, engine_findings in zip(handles, results_raw, strict=True):
+            is_variant = handle in variant_handles
+            for item in engine_findings:
+                if item.status != "candidate" or not item.source:
+                    continue
+                confidence = item.confidence
+                if is_variant:
+                    confidence = _DOWNGRADE.get(confidence, confidence)
+                value = f"{item.source}: '{handle}' exists"
+                title = item.title.strip()
+                if title and "telegram" not in title.lower():
+                    value += " — " + title[:120]
+                extra = dict(item.metadata)
+                extra["handle"] = handle
+                if title:
+                    extra["title"] = title[:120]
+                out.append(Finding(
+                    kind="profile",
+                    source=f"{item.source} ({self.name})",
+                    value=value,
+                    confidence=confidence,
+                    url=item.url,
+                    extra=extra,
+                ))
         return out

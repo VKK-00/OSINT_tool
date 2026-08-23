@@ -227,6 +227,35 @@ CURATED_USERNAME_SITES: tuple[UsernameSite, ...] = (
         rule_note="3-30 letters, numbers, underscores or dashes",
         not_found_markers=("Пользователь не найден", "Такого пользователя нет"),
     ),
+    # --- curated UA/RF-weighted additions consolidated from the osintkit site list ---
+    UsernameSite("DTF", "https://dtf.ru/u/{username}", region="ru", source_projects=("osintkit-curated",)),
+    UsernameSite(
+        "Habr Career",
+        "https://career.habr.com/{username}",
+        region="ru",
+        source_projects=("osintkit-curated",),
+    ),
+    UsernameSite(
+        "DeviantArt",
+        "https://www.deviantart.com/{username}",
+        source_projects=("osintkit-curated",),
+        not_found_markers=("Not Found",),
+    ),
+    UsernameSite(
+        "Mastodon (mastodon.social)",
+        "https://mastodon.social/@{username}",
+        source_projects=("osintkit-curated",),
+        not_found_markers=("The page you are looking for isn't here",),
+    ),
+    UsernameSite(
+        "Last.fm",
+        "https://www.last.fm/user/{username}",
+        source_projects=("osintkit-curated",),
+        not_found_markers=("Whoops // Sorry, but something went wrong",),
+    ),
+    UsernameSite("Twitch", "https://m.twitch.tv/{username}", source_projects=("osintkit-curated",)),
+    UsernameSite("Roblox", "https://www.roblox.com/users/profile?username={username}", source_projects=("osintkit-curated",)),
+    UsernameSite("Spotify", "https://open.spotify.com/user/{username}", source_projects=("osintkit-curated",)),
 )
 
 

@@ -43,6 +43,13 @@ python -m osintkit sanctions-update               # индекс OpenSanctions (
 osintkit-web                                       # веб-UI + watch-мониторинг на http://127.0.0.1:8765
 ```
 
+Те ж саме доступно з уніфікованого CLI (спільний рушій, план консолідації: [docs/MIGRATION_OSINTKIT.uk.md](docs/MIGRATION_OSINTKIT.uk.md)):
+
+```powershell
+python -m osint_toolkit deep-leaks-import ./my_leaks/
+python -m osint_toolkit deep-sanctions-update
+```
+
 Веб-UI: выбор модулей, живой прогресс, силовой граф target→модули→сущности, NEW-диф между сканами, watch-режим (периодический рескан с подсчётом новых находок), JSON/HTML/CSV отчёты.
 
 План глубокой интеграции “один ввод -> все подходящие сервисы -> единый отчёт”: [DEEP_INTEGRATION_PLAN.ru.md](DEEP_INTEGRATION_PLAN.ru.md).

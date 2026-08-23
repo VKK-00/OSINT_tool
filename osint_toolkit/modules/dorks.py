@@ -2,12 +2,15 @@
 
 Pure link generation — no requests are made. Yandex included deliberately:
 it indexes runet far better than Google, which matters for RU/UA targets.
+Handle targets additionally get latin<->cyrillic transliteration variants
+and a Telegram alias pivot.
 """
 from __future__ import annotations
 
 import urllib.parse
 
 from ..engine import Finding, RunConfig, ScanTarget
+from ..translit import transliterate
 
 
 def _q(engine: str, query: str) -> str:
@@ -52,11 +55,21 @@ class DorksModule:
             add("Phone on messengers/socials",
                 f'"{p}" (site:t.me OR site:vk.com OR site:ok.ru OR site:wa.me)')
         else:
-            v = " OR ".join([f'"{value}"', f'"{value.lower()}"'])
+            handle = value.strip("@")
+            variants = [handle] + transliterate(handle)[:5]
+            v = " OR ".join(f':"{x}"' for x in variants[:4])
             add("Handle/name variants", v)
             add("Handle on UA/RF socials",
                 v + " (site:vk.com OR site:ok.ru OR site:t.me)")
             add("Handle on forums/blogs",
                 v + " (site:habr.com OR site:dtf.ru OR site:pikabu.ru)")
+            add("Handle on paste sites",
+                v + " (site:pastebin.com OR site:textbin.net)")
             add("Documents mentioning target", v + " filetype:pdf")
+            findings.append(Finding(
+                module=self.name, source="lead", target=target.value,
+                status="candidate", confidence="low",
+                url=f"https://t.me/{handle}",
+                title=f"Pivot: Telegram alias check t.me/{handle}",
+            ))
         return tuple(findings)
