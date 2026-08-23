@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import pathlib
 import uuid
 
@@ -20,6 +21,27 @@ from osintkit.modules.base import get_all
 
 app = FastAPI(title="osintkit", version=__version__)
 STATIC = pathlib.Path(__file__).parent / "static"
+
+
+def _web_token() -> str:
+    """Optional shared token. Set OSINTKIT_WEBAPP_TOKEN (or pass --token)
+    to protect /api/* endpoints; leave empty for local-only open access."""
+    return os.environ.get("OSINTKIT_WEBAPP_TOKEN", "")
+
+
+@app.middleware("http")
+async def token_guard(request, call_next):
+    expected = _web_token()
+    if expected and request.url.path.startswith("/api/"):
+        provided = (
+            request.headers.get("x-osintkit-token")
+            or request.query_params.get("token")
+            or ""
+        )
+        if provided != expected:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    return await call_next(request)
 
 # in-memory scan jobs
 JOBS: dict[str, dict] = {}
@@ -291,8 +313,20 @@ async def admin_status() -> dict:
 
 
 def main() -> None:
+    import argparse
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="warning")
+    parser = argparse.ArgumentParser(description="osintkit web UI")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("OSINTKIT_WEBAPP_TOKEN", ""),
+        help="Protect /api/* with a shared token",
+    )
+    args = parser.parse_args()
+    if args.token:
+        os.environ["OSINTKIT_WEBAPP_TOKEN"] = args.token
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

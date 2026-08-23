@@ -55,13 +55,17 @@ class ExifPhotoModule:
         taken = str(exif_ifd.get(36867, "") or exif.get(306, "")).strip()
         software = str(exif.get(305, "")).strip()
 
-        meta_bits = [b for b in (
-            " ".join(b for b in (make, model) if b and b.lower() != "none"),
-            taken, software) if b]
+        camera = " ".join(b for b in (make, model) if b and b.lower() != "none")
+        meta_bits = [b for b in (camera, taken, software) if b]
         if meta_bits:
             findings.append(Finding(
                 module=self.name, source="pillow", target=url, status="hit",
-                title=" · ".join(meta_bits), confidence="high"))
+                title=" · ".join(meta_bits), confidence="high",
+                metadata={
+                    **({"camera": camera} if camera else {}),
+                    **({"taken_date": taken} if taken else {}),
+                    **({"software": software[:60]} if software else {}),
+                }))
 
         if gps_ifd and 2 in gps_ifd and 4 in gps_ifd:
             try:
@@ -75,10 +79,11 @@ class ExifPhotoModule:
                     url=("https://www.openstreetmap.org/?mlat=" + str(lat)
                          + "&mlon=" + str(lon) + "#map=16/" + q),
                     metadata={
+                        # recognized by entities_from_findings -> graph node
+                        "coordinates": q,
                         "google_maps": "https://maps.google.com/?q=" + q,
                         "yandex_maps": ("https://yandex.ru/maps/?ll="
                                         + str(lon) + "%2C" + str(lat) + "&z=16"),
-                        "decimal": q,
                     }))
             except Exception as exc:  # noqa: BLE001
                 findings.append(Finding(

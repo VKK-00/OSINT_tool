@@ -298,6 +298,10 @@ def _metadata_entity_kind(key: str) -> str:
         "technology",
         "provider",
         "providers",
+        "coordinates",
+        "camera",
+        "taken_date",
+        "sanction_topic",
     }
     return key if key in supported else ""
 

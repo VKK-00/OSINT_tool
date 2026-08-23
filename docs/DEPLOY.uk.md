@@ -43,7 +43,7 @@ After=network-online.target
 [Service]
 User=osint
 WorkingDirectory=/opt/VKK_OSINT
-ExecStart=/opt/VKK_OSINT/.venv/bin/python -m uvicorn osintkit.webapp:app --host 127.0.0.1 --port 8765
+ExecStart=/opt/VKK_OSINT/.venv/bin/python -m osintkit.webapp --host 127.0.0.1 --port 8765 --token ${OSINTKIT_TOKEN}
 Restart=always
 RestartSec=5
 
@@ -59,7 +59,10 @@ sudo systemctl enable --now osintkit-web
 
 - Слухай **тільки 127.0.0.1**. Для віддаленого доступу — SSH-тунель:
   `ssh -L 8765:127.0.0.1:8765 user@vps`
-- Веб-UI не має автентифікації: не відкривай порт у світло напряму.
+- Якщо треба відкрити порт — увімкни спільний токен:
+  `python -m osintkit.webapp --host 0.0.0.0 --token <довільний-рядок>`
+  (або env `OSINTKIT_WEBAPP_TOKEN`). Браузер сам попросить токен один раз
+  і збереже його в localStorage.
 - Watch'і зберігаються в `out/watches.json` і відновлюються після рестарту
   сервіса — деплой нічого не втрачає.
 - Бекапь `out/` (звіти + `index.db` + `watches.json`).

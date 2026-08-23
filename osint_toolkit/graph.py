@@ -790,6 +790,10 @@ def _metadata_edge(key: str) -> tuple[str, str] | None:
         "technology": ("uses_technology", "technology"),
         "provider": ("uses_provider", "provider"),
         "providers": ("uses_provider", "provider"),
+        "coordinates": ("has_geo_coordinates", "geo-coordinates"),
+        "camera": ("captured_with_camera", "camera"),
+        "taken_date": ("taken_on_date", "taken-date"),
+        "sanction_topic": ("sanction_topic", "sanction-topic"),
     }
     return mapping.get(key)
 
