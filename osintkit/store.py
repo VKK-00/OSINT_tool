@@ -30,6 +30,7 @@ def _connect() -> sqlite3.Connection:
         line  TEXT,
         source TEXT)""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_leaks_value ON leaks(value)")
+    _ensure_fts(conn)
     conn.execute("""CREATE TABLE IF NOT EXISTS sanctions(
         name TEXT NOT NULL,
         schema TEXT, countries TEXT, topics TEXT, birth_date TEXT,
@@ -38,10 +39,39 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _ensure_fts(conn: sqlite3.Connection) -> None:
+    """FTS5 index over leak tokens; silently absent on builds without FTS5."""
+    try:
+        # drop legacy sync triggers from an earlier iteration - they now double
+        # every explicit index write and trip the unique-rowid constraint
+        conn.execute("DROP TRIGGER IF EXISTS leaks_fts_insert")
+        conn.execute("DROP TRIGGER IF EXISTS leaks_fts_delete")
+        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS leaks_fts USING fts5(value)")
+    except sqlite3.OperationalError:
+        pass
+
+
+def _fts_ready(conn: sqlite3.Connection) -> bool:
+    try:
+        conn.execute("SELECT 1 FROM leaks_fts LIMIT 1")
+        return True
+    except sqlite3.OperationalError:
+        return False
+
+
 # ---------------------------------------------------------------- leaks ----
 
 def _insert_batch(conn: sqlite3.Connection, batch: list[tuple]) -> None:
+    if _fts_ready(conn):
+        prev_max = conn.execute("SELECT COALESCE(MAX(rowid), 0) FROM leaks").fetchone()[0]
+    else:
+        prev_max = None
     conn.executemany("INSERT INTO leaks(value,kind,line,source) VALUES(?,?,?,?)", batch)
+    if prev_max is not None:
+        conn.execute(
+            "INSERT INTO leaks_fts(rowid, value) SELECT rowid, value FROM leaks WHERE rowid > ?",
+            (prev_max,),
+        )
 
 
 def import_leaks(path: str) -> dict:
@@ -119,6 +149,8 @@ def purge_leaks_all() -> int:
     conn = _connect()
     try:
         cur = conn.execute("DELETE FROM leaks")
+        if _fts_ready(conn):
+            conn.execute("DELETE FROM leaks_fts")
         conn.commit()
         return cur.rowcount
     finally:
@@ -130,6 +162,10 @@ def search_leaks(term: str, limit: int = 50) -> list[dict]:
     try:
         t = term.strip().lstrip("@").lower()
         esc_t = t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_" )
+        if _fts_ready(conn):
+            fts_hits = _fts_search(conn, t, limit)
+            if fts_hits:
+                return fts_hits
         cur = conn.execute(
             """SELECT DISTINCT kind, value, source FROM leaks
                WHERE value = ? OR value LIKE ? ESCAPE '\\'
@@ -138,7 +174,8 @@ def search_leaks(term: str, limit: int = 50) -> list[dict]:
         hits = [{"kind": k, "value": v, "source": s}
                 for k, v, s in cur.fetchall()]
         if not hits:
-            # fall back to substring search across raw lines
+            # fall back to substring search across raw lines (kept only with
+            # OSINTKIT_KEEP_RAW=1 - see import_leaks data minimization)
             cur = conn.execute(
                 """SELECT DISTINCT kind, value, source FROM leaks
                    WHERE line LIKE ? ESCAPE '\\' LIMIT ?""",
@@ -148,6 +185,24 @@ def search_leaks(term: str, limit: int = 50) -> list[dict]:
         return hits
     finally:
         conn.close()
+
+
+def _fts_search(conn: sqlite3.Connection, term: str, limit: int) -> list[dict]:
+    """FTS5 prefix search over indexed tokens; returns [] on any mismatch."""
+    sanitized = term.replace('"', " ").strip()
+    if not sanitized:
+        return []
+    query = '"' + sanitized + '"*'
+    try:
+        cur = conn.execute(
+            """SELECT DISTINCT l.kind, l.value, l.source FROM leaks_fts f
+               JOIN leaks l ON l.rowid = f.rowid
+               WHERE leaks_fts MATCH ? LIMIT ?""",
+            (query, limit))
+        return [{"kind": k, "value": v, "source": s}
+                for k, v, s in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []
 
 
 # ------------------------------------------------------------- sanctions ----

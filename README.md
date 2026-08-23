@@ -1,17 +1,38 @@
 # OSINT Toolkit
 
-Локальный CLI-инструмент и заготовка единой OSINT-системы на основе собранного каталога GitHub OSINT-проектов.
+**Case-centric OSINT workbench.** Один вхідний seed (email, username, phone, domain, URL, photo, особа чи компанія) проходить через 22 нативні модулі та adapter-шар до upstream CLI — і збирається в SQLite-кейс із сутностями, evidence-графом і міжкейсовим пошуком зв'язків. Фокус на UA/RF публічних джерелах без замикання регіоном.
 
-Цель проекта — не просто список ссылок, а единое ядро, которое постепенно покрывает функционал upstream-проектов 1:1 на уровне поведения:
+**Лише публічні дані:** dry-run за замовчуванням, жодних логін-сесій, restricted-адаптери під окремим дозволом, а evidence-граф приймає тільки підтверджені твердження — запланований URL чи відповідь «не знайдено» ніколи не стає зв'язком у кейсі.
 
-- native-модулями внутри `osint_toolkit`;
-- адаптерами к внешним CLI/API там, где проект большой, написан на другом языке или его лицензию нельзя просто смешивать с этим кодом;
-- единым форматом результатов `Finding`;
-- общей CLI-оболочкой.
+## Quick start
 
-“1:1” в этом проекте означает: одинаковый класс входных данных, сопоставимый результат, единый статус/confidence и явный gap, если часть upstream-поведения ещё не покрыта. Adapter здесь не заглушка: это запуск реального upstream CLI/API и приведение его вывода к общей модели. Буквальное копирование исходников возможно только после проверки лицензии; иначе используется adapter или своя реализация того же поведения.
+```powershell
+pip install -e ".[web]"                       # рушій + CLI + веб (dev: додати [dev])
+python -m osint_toolkit stats                 # каталог top-100 OSINT-проєктів
+python -m osint_toolkit modules               # реєстр модулів: мережа/ризик/ключі
+python -m osint_toolkit search email person@example.com --plan-only    # план без запитів
+python -m osint_toolkit toolbox --serve --open # локальний пульт оператора
+```
 
-Рабочая карта parity: [UPSTREAM_PARITY.ru.md](UPSTREAM_PARITY.ru.md). План консолідації двох пакетів в один движок: [docs/MIGRATION_OSINTKIT.uk.md](docs/MIGRATION_OSINTKIT.uk.md). Пріоритезований план підключення зовнішніх публічних джерел: [docs/EXTERNAL_INTEGRATIONS.uk.md](docs/EXTERNAL_INTEGRATIONS.uk.md).
+## Три типових сценарії
+
+**Username dossier:** `search username example_user --profile username-full` — 2000+ profile-check шаблонів (Sherlock/WMN/Maigret бази) + GitHub/Mastodon/Bluesky профілі з останніми публічними постами, все в одному звіті з provenance.
+
+**Email/domain recon у кейс:** `search email person@example.com --profile email-full --execute-adapters --case-db cases.sqlite --case-id case-1` — DNS/MX/SPF/DMARC, Gravatar, CT subdomains, RDAP/WHOIS, Wayback-вік домену, IP-exposure (InternetDB); потім `case-index` покаже спільні сутності між кейсами.
+
+**Фото → геолокація:** `search image C:\evidence\photo.jpg --profile image-full` — EXIF GPS → координати + реверс-геокод + іменовані OSM-об'єкти поруч (Overpass) для звірки з кадром.
+
+## Стан компонентів
+
+| Компонент | Статус |
+|---|---|
+| Engine, Finding/Entity/graph, case store, CLI | stable |
+| Username/email/phone/domain baseline, dorks | stable |
+| Person/company enrichment (GitHub, Mastodon, Bluesky, Wikidata, GLEIF) | beta |
+| Domain intelligence (InternetDB, Wayback CDX, urlScan) | beta |
+| osintkit веб-UI + watch (легасі-пакет) | legacy → консолідація |
+
+Детальна документація: parity-карта [UPSTREAM_PARITY.ru.md](UPSTREAM_PARITY.ru.md) · консолідація пакетів [docs/MIGRATION_OSINTKIT.uk.md](docs/MIGRATION_OSINTKIT.uk.md) · зовнішні джерела [docs/EXTERNAL_INTEGRATIONS.uk.md](docs/EXTERNAL_INTEGRATIONS.uk.md) · контракт даних [docs/CONTRACT.md](docs/CONTRACT.md) · деплой watch-моніторингу [docs/DEPLOY.uk.md](docs/DEPLOY.uk.md).
 
 ## Deep-модули (интегрированный osintkit)
 
