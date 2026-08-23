@@ -21,7 +21,7 @@
 
 | Модуль | Типы таргетов | Что делает |
 |---|---|---|
-| `sanctions-index` | person, username, ru-ua | офлайн-поиск по санкционным спискам OpenSanctions (~1.2M сущностей; индекс строится один раз) |
+| `sanctions-index` | person, username, ru-ua | офлайн-поиск по санкционным спискам OpenSanctions (~1.2M сущностей; индекс строится один раз). Хиты строят entities: `name`, `country` (по кодам) → попадают в graph и case store |
 | `deep-leaks` | email, phone, username, person | поиск по локальным датасетам утечек (sqlite-индекс; данные не покидают машину) |
 | `dorks` | все типы | готовые поисковые пивоты Google/Yandex/DDG/Bing c site-фильтрами (vk.com, ok.ru, t.me, habr.com, pastebin…) |
 | `exif` | url | EXIF-форензика фото: GPS→координаты+карты, камера, дата зйомки |

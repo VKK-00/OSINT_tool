@@ -141,6 +141,13 @@ def entities_from_findings(findings: tuple[Finding, ...]) -> tuple[Entity, ...]:
                     continue
                 if key in {"phone", "normalized"} and not PHONE_RE.fullmatch(value):
                     continue
+                if key in {"country", "topics"}:
+                    # multi-code fields (e.g. OpenSanctions lists) -> one entity per code
+                    for part in _split_metadata_values(value):
+                        entities.append(Entity(entity_kind, part, source,
+                                               finding.confidence,
+                                               f"metadata:{key}"))
+                    continue
                 entity_kind = {
                     "normalized": "normalized-value",
                     "normalized_name": "normalized-name",

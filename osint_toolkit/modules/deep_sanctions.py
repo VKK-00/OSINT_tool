@@ -33,6 +33,14 @@ class SanctionsIndexModule:
                             confidence="low", evidence=str(exc)),)
 
         out: list[Finding] = []
+        import re as _re
+
+        def norm_codes(value: str) -> str:
+            # OpenSanctions uses ";"-separated codes; the toolkit splitter
+            # expects "," — normalize so entity extraction sees each code.
+            parts = [p.strip() for p in _re.split("[;,]", value or "") if p.strip()]
+            return ", ".join(parts)
+
         for h in hits[:20]:
             bits = [b for b in (h.get("schema"), h.get("countries"),
                                 h.get("topics"), h.get("birth_date")) if b]
@@ -45,10 +53,15 @@ class SanctionsIndexModule:
                     + urllib_quote(h["name"])),
                 title=title,
                 confidence="medium", evidence=notes,
-                metadata={"schema": h.get("schema", ""),
-                          "countries": h.get("countries", ""),
-                          "topics": h.get("topics", ""),
-                          "birth_date": h.get("birth_date", "")}))
+                metadata={
+                    # "name"/"country"/"schema" are recognized by
+                    # entities_from_findings -> watchlist entities + graph edges
+                    "name": h.get("name", ""),
+                    "schema": h.get("schema", ""),
+                    "country": norm_codes(h.get("countries", "")),
+                    "topics": norm_codes(h.get("topics", "")),
+                    "birth_date": h.get("birth_date", ""),
+                }))
         if not out:
             out.append(Finding(module=self.name, source="opensanctions-local",
                                target=target.value, status="not_found",
