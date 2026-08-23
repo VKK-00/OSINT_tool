@@ -42,6 +42,13 @@
   button.run:hover { filter: brightness(1.15); }
   button.run:disabled { opacity: .5; cursor: wait; }
   .status { margin: 18px 0 6px; color: var(--dim); font-size: 13px; height: 18px; }
+  #graphWrap { display: none; margin-bottom: 20px; }
+  #graph { width: 100%; height: 460px; background: var(--panel);
+           border: 1px solid var(--border); border-radius: 10px;
+           cursor: grab; display: block; }
+  .legend { color: var(--dim); font-size: 12px; margin: 6px 0 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+              margin: 0 5px 0 14px; }
   .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 22px; visibility: hidden; }
   .progress i { display: block; height: 100%; width: 30%;
                 background: var(--accent); animation: slide 1.2s ease-in-out infinite alternate; }
@@ -113,6 +120,12 @@
   </form>
   <div class="status" id="status"></div>
   <div class="progress" id="prog"><i></i></div>
+  <div id="graphWrap">
+    <canvas id="graph"></canvas>
+    <div class="legend"><i style="background:#e6edf3"></i>target
+      <i style="background:#2f81f7"></i>модуль
+      <i style="background:#d29922"></i>сутність</div>
+  </div>
   <div id="results"></div>
 </main>
 
@@ -191,6 +204,7 @@ function poll(jobId) {
       setStatus('Готово: ' + done + '/' + total + ' модулів · звіт збережено в out/');
       prog(false);
       document.getElementById('runBtn').disabled = false;
+      buildGraph(j.results);
       loadHistory();
     } else {
       setStatus('Сканування… модуль ' + Math.min(done+1,total) + '/' + total);
@@ -239,6 +253,7 @@ async function showReport(name) {
   try {
     const rep = await (await fetch(API + '/api/report/' + name)).json();
     renderResults(rep.results, rep.generated ? name : rep.target, true);
+    buildGraph(rep.results);
     window.scrollTo(0, 0);
   } catch (e) { setStatus('Не вдалось завантажити звіт', true); }
 }
@@ -250,6 +265,99 @@ function setStatus(msg, isErr) {
 }
 
 let adminTimer = null;
+
+// ------------------------- force graph ----------------------------------
+const GR = { inited: false, nodes: [], links: [] };
+function buildGraph(results) {
+  const PRIO = ['profile','channel','sanctions','exposure','identity',
+                'subdomains','whois','phone','live_hosts'];
+  const nodes = [{ id: '__target__', label: currentTarget().slice(0,24), type: 'target' }];
+  const links = [], ents = [];
+  for (const res of results.slice().sort((a,b)=>a.module.localeCompare(b.module))) {
+    nodes.push({ id: 'm|'+res.module, label: res.module, type: 'module' });
+    links.push({ source: '__target__', target: 'm|'+res.module });
+    for (const f of (res.findings||[])) {
+      if (ents.length >= 30 || !PRIO.includes(f.kind)) continue;
+      const label = String(f.value).split("\n")[0].slice(0,60);
+      if (!label) continue;
+      const eid = res.module + "|" + label;
+      if (!nodes.find(n=>n.id===eid)) {
+        nodes.push({ id: eid, label, type: "entity" });
+        ents.push(eid);
+      }
+      if (ents.includes(eid)) links.push({ source: "m|"+res.module, target: eid });
+    }
+  }
+  startGraph({ nodes, links });
+}
+function currentTarget(){ return document.getElementById("target").value.trim() || "?"; }
+function startGraph(data) {
+  const cv = document.getElementById("graph");
+  document.getElementById("graphWrap").style.display = "block";
+  if (!GR.inited) { initGraph(cv); GR.inited = true; }
+  GR.nodes = data.nodes.map(n => Object.assign({}, n, {
+    x: cv.width/2 + (Math.random()-.5)*300, y: cv.height/2 + (Math.random()-.5)*260,
+    vx:0, vy:0, drag:false,
+    r: n.type==="target" ? 26 : n.type==="module" ? 15 : 9 }));
+  const idx = {}; data.nodes.forEach((n,i)=>idx[n.id]=i);
+  GR.links = data.links.map(l => ({ s: idx[l.source], t: idx[l.target] }))
+                      .filter(l => l.s!==undefined && l.t!==undefined && l.s!==l.t);
+}
+function initGraph(cv) {
+  const ctx = cv.getContext("2d");
+  function resize(){ cv.width = cv.offsetWidth; cv.height = cv.offsetHeight; }
+  resize(); addEventListener("resize", resize);
+  let drag = null;
+  cv.addEventListener("mousedown", e => {
+    const b = cv.getBoundingClientRect();
+    const mx = e.clientX-b.left, my = e.clientY-b.top;
+    drag = GR.nodes.find(n => (mx-n.x)**2+(my-n.y)**2 < n.r*n.r+40) || null;
+    if (drag) drag.drag = true;
+  });
+  cv.addEventListener("mousemove", e => {
+    if (!drag) return;
+    const b = cv.getBoundingClientRect();
+    drag.x = e.clientX-b.left; drag.y = e.clientY-b.top;
+  });
+  addEventListener("mouseup", () => { if (drag) drag.drag=false; drag=null; });
+  const COL = { target:"#e6edf3", module:"#2f81f7", entity:"#d29922" };
+  (function loop(){
+    const W = cv.width, H = cv.height;
+    for (let i=0;i<GR.nodes.length;i++) for (let j=i+1;j<GR.nodes.length;j++) {
+      const a=GR.nodes[i], b=GR.nodes[j];
+      let dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy||1, d=Math.sqrt(d2);
+      if (d>340) continue;
+      const f = 2200/d2; dx/=d; dy/=d;
+      a.vx-=dx*f; a.vy-=dy*f; b.vx+=dx*f; b.vy+=dy*f;
+    }
+    for (const l of GR.links) {
+      const a=GR.nodes[l.s], b=GR.nodes[l.t];
+      let dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      const want=(a.type==="target"||b.type==="target")?130:90;
+      const f=(d-want)*.004; dx/=d; dy/=d;
+      a.vx+=dx*f*d*.06; a.vy+=dy*f*d*.06; b.vx-=dx*f*d*.06; b.vy-=dy*f*d*.06;
+    }
+    for (const n of GR.nodes) {
+      n.vx*=.85; n.vy*=.85;
+      if (!n.drag){ n.x+=n.vx; n.y+=n.vy; }
+      n.x=Math.max(n.r,Math.min(W-n.r,n.x)); n.y=Math.max(n.r,Math.min(H-n.r,n.y));
+    }
+    ctx.clearRect(0,0,W,H); ctx.strokeStyle="#30363d";
+    for (const l of GR.links){ ctx.beginPath(); ctx.moveTo(GR.nodes[l.s].x,GR.nodes[l.s].y);
+      ctx.lineTo(GR.nodes[l.t].x,GR.nodes[l.t].y); ctx.stroke(); }
+    for (const n of GR.nodes){
+      ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,7);
+      ctx.fillStyle=COL[n.type]||"#888"; ctx.fill();
+      if (n.r>=15){ ctx.fillStyle="#0d1117";
+        ctx.font="bold "+Math.max(9,n.r*.55)+"px sans-serif";
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(n.label.slice(0,n.r>20?12:6),n.x,n.y);
+      } else { ctx.fillStyle="#8b949e"; ctx.font="10px sans-serif";
+        ctx.textAlign="center"; ctx.fillText(n.label.slice(0,22),n.x,n.y-n.r-5); }
+    }
+    requestAnimationFrame(loop);
+  })();
+}
 function adminOp(kind) {
   const body = kind === 'leaks'
     ? { path: document.getElementById('leakPath').value.trim() }

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import socket
 
 from osintkit.core import Finding, HttpClient
@@ -58,6 +59,7 @@ class NetReconModule(Module):
 
     async def _domain(self, domain: str, http: HttpClient) -> list[Finding]:
         findings: list[Finding] = []
+        uniq: list[str] = []
 
         # DNS over HTTPS
         for rtype in ("A", "MX", "TXT", "NS"):
@@ -72,20 +74,25 @@ class NetReconModule(Module):
             except Exception:
                 pass
 
-        # Certificate transparency subdomains
-        try:
-            subs = await http.get_json(
-                f"https://crt.sh/?q=%.{domain}&output=json")
-            names = sorted({n.strip() for row in subs[:400] for n in row.get("name_value", "").split("\n")})
-            uniq = [n for n in names if n.endswith(domain)]
-            if uniq:
-                findings.append(Finding(kind="subdomains", source=self.name,
-                                        value=f"{len(uniq)} unique names from CT logs",
-                                        confidence="high",
-                                        url=f"https://crt.sh/?q=%.{domain}",
-                                        extra={"names": uniq[:100]}))
-        except Exception:
-            pass
+        # Certificate transparency subdomains (crt.sh is flaky — retry once)
+        import asyncio as _aio
+        for attempt in range(2):
+            try:
+                subs_ct = await http.get_json(
+                    f"https://crt.sh/?q=%.{domain}&output=json")
+                names = sorted({n.strip() for row in subs_ct[:400]
+                                for n in row.get("name_value", "").split("\n")})
+                uniq = [n for n in names if n.endswith(domain)]
+                if uniq:
+                    findings.append(Finding(kind="subdomains", source=self.name,
+                                            value=f"{len(uniq)} unique names from CT logs",
+                                            confidence="high",
+                                            url=f"https://crt.sh/?q=%.{domain}",
+                                            extra={"names": uniq[:100]}))
+                break
+            except Exception:
+                if attempt == 0:
+                    await _aio.sleep(2)
 
         # RDAP
         try:
@@ -97,6 +104,32 @@ class NetReconModule(Module):
                                            "registered": events.get("registration"),
                                            "expires": events.get("expiration"),
                                            "status": ",".join(rdap.get("status", [])[:4])}))
+        except Exception:
+            pass
+
+        # Liveness: resolve CT subdomains via DoH
+        try:
+            subs = [u for u in uniq if u != domain][:25]
+
+            async def resolve(name):
+                try:
+                    ans = await http.get_json(
+                        "https://dns.google/resolve?name=" + name + "&type=A")
+                    for a in ans.get("Answer", []):
+                        if a.get("type") == 1:
+                            return name, str(a.get("data"))
+                except Exception:
+                    pass
+                return name, ""
+
+            resolved = await asyncio.gather(*(resolve(s) for s in subs))
+            live = {n: ip for n, ip in resolved if ip}
+            if live:
+                findings.append(Finding(
+                    kind="live_hosts", source=self.name,
+                    value=str(len(live)) + " of " + str(len(subs)) + " CT names resolve",
+                    confidence="medium",
+                    extra={"hosts": dict(list(live.items())[:25])}))
         except Exception:
             pass
         return findings
