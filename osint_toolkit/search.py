@@ -233,6 +233,21 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         note="Broad recon adapters are included but remain readiness-checked and non-restricted only.",
     ),
     SearchProfile(
+        name="deep-full",
+        title="Deep index fan-out",
+        description=(
+            "Native baseline plus deep-index modules: offline OpenSanctions "
+            "watchlist, local leak datasets, search-engine dork pivots and "
+            "EXIF photo forensics."
+        ),
+        target_kinds=TARGET_KINDS,
+        native_kinds=("person", "username", "email", "phone", "domain", "url",
+                      "telegram", "instagram", "social", "ru-ua"),
+        adapter_profiles=("url-archive",),
+        note=("sanctions-index and deep-leaks need local indexes built once: "
+              "python -m osintkit sanctions-update | leaks-import <path>."),
+    ),
+    SearchProfile(
         name="phone-full",
         title="Phone full fan-out",
         description="Phone baseline plus every currently compatible non-restricted phone adapter.",

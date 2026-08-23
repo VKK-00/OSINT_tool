@@ -26,6 +26,13 @@
 | `dorks` | все типы | готовые поисковые пивоты Google/Yandex/DDG/Bing c site-фильтрами (vk.com, ok.ru, t.me, habr.com, pastebin…) |
 | `exif` | url | EXIF-форензика фото: GPS→координаты+карты, камера, дата зйомки |
 
+Профіль fan-out `deep-full` запускає базові native-перевірки разом із deep-індексами:
+
+```powershell
+python -m osint_toolkit search person "yanukovych" --profile deep-full --plan-only
+python -m osint_toolkit search person "yanukovych" --profile deep-full
+```
+
 **2. Как самостоятельный CLI/веб-инструмент**:
 
 ```powershell
