@@ -787,8 +787,10 @@ class AdapterParserTests(unittest.TestCase):
 
         entities = {(entity.kind, entity.value.lower()) for entity in entities_from_findings(findings)}
         self.assertIn(("domain", "github.com"), entities)
-        self.assertIn(("region", "ua"), entities)
-        self.assertIn(("region", "ru"), entities)
+        # evidence-graph contract: not_found/error observations contribute no
+        # entities - including their incidental region hints
+        self.assertNotIn(("region", "ua"), entities)
+        self.assertNotIn(("region", "ru"), entities)
         self.assertNotIn(("domain", "example.ua"), entities)
         self.assertNotIn(("domain", "broken.ru"), entities)
 

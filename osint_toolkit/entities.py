@@ -9,6 +9,25 @@ from .engine import Finding, ScanTarget
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 PHONE_RE = re.compile(r"\+[1-9]\d{7,14}\b")
 
+# Evidence-graph contract (docs/CONTRACT.md):
+# only findings that assert something positive about the target may create
+# entities and edges. Planned URLs, soft/not-found answers, skips, errors and
+# unknown outcomes are observations of the check log - they must not turn into
+# "this username is connected to platform X" style graph statements.
+NON_EVIDENCE_STATUSES = frozenset({
+    "planned",        # probe only: URL built but never requested
+    "not_found",      # negative observation
+    "skipped",        # check not applicable / key missing
+    "error",          # execution failure
+    "invalid",        # input rejected by normalizer
+    "unknown",        # ambiguous answer (403/429/5xx etc.)
+})
+EVIDENCE_STATUSES = frozenset({"candidate", "hit", "valid", "reference"})
+
+
+def is_evidence_finding(finding: Finding) -> bool:
+    return finding.status in EVIDENCE_STATUSES
+
 
 @dataclass(frozen=True)
 class Entity:
@@ -45,6 +64,8 @@ def entities_from_targets(targets: tuple[ScanTarget, ...]) -> tuple[Entity, ...]
 def entities_from_findings(findings: tuple[Finding, ...]) -> tuple[Entity, ...]:
     entities: list[Entity] = []
     for finding in findings:
+        if finding.status in NON_EVIDENCE_STATUSES:
+            continue  # observation, not an assertion (see CONTRACT.md)
         source = f"{finding.module}:{finding.source}"
         if finding.url:
             entities.append(Entity("url", finding.url, source, finding.confidence, finding.status))

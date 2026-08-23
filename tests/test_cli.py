@@ -413,11 +413,13 @@ class CliTests(unittest.TestCase):
         self.assertIn(("email", "person@example.com"), entities)
         self.assertIn(("domain", "example.com"), entities)
         self.assertIn(("telegram", "@durov"), entities)
-        self.assertIn(("url", "https://t.me/durov"), entities)
+        # evidence-graph contract: planned probe URLs are not entities
+        self.assertNotIn(("url", "https://t.me/durov"), entities)
         self.assertIn(("instagram", "@exampleuser"), entities)
-        self.assertIn(("url", "https://www.instagram.com/exampleuser/"), entities)
-        self.assertIn(("social-profile", "vk:exampleuser"), entities)
-        self.assertIn(("url", "https://vk.com/exampleuser"), entities)
+        self.assertNotIn(("url", "https://www.instagram.com/exampleuser/"), entities)
+        # planned social finding must not contribute its profile entity either
+        self.assertNotIn(("social-profile", "vk:exampleuser"), entities)
+        self.assertIn(("social", "vk:exampleuser"), entities)
 
     def test_investigate_person_expands_username_candidates(self):
         result = self.run_cli(
@@ -433,7 +435,8 @@ class CliTests(unittest.TestCase):
         entities = {(entity["kind"], entity["value"].lower()) for entity in payload["entities"]}
         self.assertIn(("person", "ivan petrenko"), entities)
         self.assertIn(("username", "ivanpetrenko"), entities)
-        self.assertIn(("url", "https://github.com/ivanpetrenko"), entities)
+        # evidence-graph contract: planned username probe URLs are not entities
+        self.assertNotIn(("url", "https://github.com/ivanpetrenko"), entities)
 
     def test_investigate_execute_adapters_requires_include_adapters(self):
         result = self.run_cli(

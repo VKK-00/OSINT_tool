@@ -448,23 +448,24 @@ class GraphAnalysisTests(unittest.TestCase):
         self.assertIn(("url", "https://vk.com/exampleuser", "social_url_for", "social-profile", "vk:exampleuser"), edge_keys)
 
     def test_yandex_and_mailru_social_url_entities(self):
+        # live candidate findings: confirmed public profile URLs
         findings = (
             Finding(
                 module="social-public-profile",
                 source="mailru-profile-url",
                 target="mailru:exampleuser",
-                status="planned",
+                status="candidate",
                 url="https://my.mail.ru/mail/exampleuser/",
-                confidence="not_checked",
+                confidence="medium",
                 metadata={"social_profile": "mailru:mail/exampleuser", "platform": "mailru"},
             ),
             Finding(
                 module="social-public-profile",
                 source="yandex-profile-url",
                 target="yandex:q/exampleuser",
-                status="planned",
+                status="candidate",
                 url="https://yandex.ru/q/profile/exampleuser/",
-                confidence="not_checked",
+                confidence="medium",
                 metadata={"social_profile": "yandex:q/exampleuser", "platform": "yandex"},
             ),
         )

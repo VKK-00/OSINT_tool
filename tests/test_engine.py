@@ -1470,7 +1470,8 @@ class EngineTests(unittest.TestCase):
         self.assertIn(("line-type", "fixed"), entity_keys)
         self.assertIn(("location", "kyiv"), entity_keys)
         self.assertIn(("telegram", "@durov"), entity_keys)
-        self.assertIn(("url", "https://t.me/durov"), entity_keys)
+        # evidence-graph contract: a *planned* probe URL must NOT become an entity
+        self.assertNotIn(("url", "https://t.me/durov"), entity_keys)
 
         edge_keys = {
             (edge.source_kind, edge.relation, edge.target_kind, edge.target_value.lower())
@@ -1483,8 +1484,8 @@ class EngineTests(unittest.TestCase):
         self.assertIn(("phone", "country_hint", "country", "ukraine"), edge_keys)
         self.assertIn(("phone", "line_type_hint", "line-type", "fixed"), edge_keys)
         self.assertIn(("phone", "location_hint", "location", "kyiv"), edge_keys)
-        self.assertIn(("telegram", "produced_url", "url", "https://t.me/durov"), edge_keys)
-        self.assertIn(("url", "telegram_url_for", "telegram", "@durov"), edge_keys)
+        # evidence-graph contract: planned probe URLs produce no edges
+        self.assertNotIn(("telegram", "produced_url", "url", "https://t.me/durov"), edge_keys)
 
         markdown = render_investigation_markdown(result)
         self.assertIn("Entity Summary", markdown)

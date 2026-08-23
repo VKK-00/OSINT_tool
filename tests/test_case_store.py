@@ -50,7 +50,8 @@ class CaseStoreTests(unittest.TestCase):
             for edge in payload["edges"]
         }
         self.assertIn(("email", "email_domain", "domain", "example.com"), edges)
-        self.assertIn(("telegram", "produced_url", "url", "https://t.me/durov"), edges)
+        # evidence-graph contract: planned probe URLs produce no edges
+        self.assertNotIn(("telegram", "produced_url", "url", "https://t.me/durov"), edges)
 
     def test_rejects_empty_case_id_and_invalid_limit(self):
         with tempfile.TemporaryDirectory() as tmpdir:

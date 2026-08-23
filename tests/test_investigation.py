@@ -663,7 +663,8 @@ class InvestigationTests(unittest.TestCase):
         self.assertIn(("normalized-name", "ivan petrenko"), entities)
         self.assertIn(("username", "ivanpetrenko"), entities)
         self.assertIn(("username", "vanyapetrenko"), entities)
-        self.assertIn(("url", "https://github.com/ivanpetrenko"), entities)
+        # evidence-graph contract: planned username probe URLs are not entities
+        self.assertNotIn(("url", "https://github.com/ivanpetrenko"), entities)
 
         edges = {
             (edge.source_kind, edge.source_value.lower(), edge.relation, edge.target_kind, edge.target_value.lower())
@@ -671,7 +672,7 @@ class InvestigationTests(unittest.TestCase):
         }
         self.assertIn(("person", "ivan petrenko", "generated_username_candidate", "username", "ivanpetrenko"), edges)
         self.assertIn(("person", "ivan petrenko", "generated_username_candidate", "username", "vanyapetrenko"), edges)
-        self.assertIn(("username", "ivanpetrenko", "produced_url", "url", "https://github.com/ivanpetrenko"), edges)
+        self.assertNotIn(("username", "ivanpetrenko", "produced_url", "url", "https://github.com/ivanpetrenko"), edges)
 
         github = next(
             finding
