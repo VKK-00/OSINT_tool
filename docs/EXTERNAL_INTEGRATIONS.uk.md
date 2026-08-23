@@ -11,11 +11,14 @@
 |---|---|---|---|---|
 | 1 | [Shodan InternetDB](https://internetdb.shodan.io) `GET /<ip>` | `modules/net` + derived IP з domain scan | Відкриті порти, hostnames, CVE-багажник IP. Без ключа, ліміти щедрі | S |
 | 2 | Wayback CDX `web.archive.org/cdx/search/cdx?url=<domain>&output=json&limit=-5` | domain/url модуль + `osintkit/modules/web_archive` | Перший снапшот = нижня межа віку домену; кількість збережень; остання архівація | S |
-| 3 | Mastodon `GET /api/v1/accounts/lookup?acct=` | username/social live-режим | Верифіковані display name, followers, created_at замість HTML-гадань | S |
-| 4 | Bluesky AppView `GET api.bsky.app/xrpc/app.bsky.actor.getProfile` | username/social live-режим | Сучасна платформа, якої немає в curated-списку; публічне API без auth | S |
-| 5 | GitHub REST `GET api.github.com/users/<u>` | username dossier (live) | created_at, public repos, bio, orgs — значно багатше за og:title | S |
+| 3 | ✅ ЗРОБЛЕНО: Mastodon `GET /api/v1/accounts/lookup` → `modules/person_sources.MastodonLookupModule` | username live | Верифіковані display name, followers, created_at замість HTML-гадань | S |
+| 4 | ✅ ЗРОБЛЕНО: Bluesky AppView getProfile → `modules/person_sources.BlueskyProfileModule` | username live | Сучасна платформа, публічне API без auth | S |
+| 5 | ✅ ЗРОБЛЕНО: GitHub REST users → `modules/person_sources.GitHubUserModule` | username dossier (live) | name, bio, location, **public email**, created_at, repos/followers | S |
 | 6 | Overpass API (OpenStreetMap) | `exif_photo`/geo-напрямок | «Що поруч із координатами»: будинки, вежі, дороги — верифікація геолокації фото | M |
-| 7 | Wikidata SPARQL (`query.wikidata.org`) | person pivot (окремий модуль) | Дізамбігуація відомих осіб: aliases, дати, посади → додаткові seed'и. Тільки публічні особи, помітка `public_figure` | M |
+| 7 | ✅ ЗРОБЛЕНО: Wikidata (wbsearchentities + wbgetentities) → `modules/person_sources.WikidataPersonModule` | person pivot | Дізамбігуація публічних осіб: aliases, роки життя, опис. Findings = name-match only | M |
+
+Додатково зроблено: Gravatar-профіль у live email-модулі (`gravatar-profile` source) —
+публічні self-published дані, прив'язані до хешу адреси.
 
 ## Пріоритет 2 — безкоштовний ключ (operator надає сам)
 

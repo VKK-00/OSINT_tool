@@ -2,6 +2,7 @@ from .domain import DomainScanModule
 from .email import EmailScanModule
 from .instagram import InstagramPublicProfileModule
 from .person import PersonNameScanModule
+from .person_sources import BlueskyProfileModule, GitHubUserModule, MastodonLookupModule, WikidataPersonModule
 from .phone import PhoneScanModule
 from .ru_ua_sources import RuUaSourcePackModule
 from .social import SocialPublicProfileModule
@@ -10,9 +11,12 @@ from .username import UsernameScanModule
 from .web import WebMetadataModule
 
 __all__ = [
+    "BlueskyProfileModule",
     "DomainScanModule",
     "EmailScanModule",
+    "GitHubUserModule",
     "InstagramPublicProfileModule",
+    "MastodonLookupModule",
     "PersonNameScanModule",
     "PhoneScanModule",
     "RuUaSourcePackModule",
@@ -20,4 +24,5 @@ __all__ = [
     "TelegramScanModule",
     "UsernameScanModule",
     "WebMetadataModule",
+    "WikidataPersonModule",
 ]

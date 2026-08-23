@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import socket
 from dataclasses import dataclass
@@ -118,6 +120,17 @@ class EmailScanModule:
             findings.append(_planned_email_auth_finding(self.name, value, domain, "mta-sts-policy"))
             findings.append(_planned_email_auth_finding(self.name, value, domain, "tls-rpt-policy"))
             findings.append(_planned_email_auth_finding(self.name, value, domain, "bimi-policy"))
+            findings.append(
+                Finding(
+                    module=self.name,
+                    source="gravatar-profile",
+                    target=value,
+                    status="planned",
+                    url=_gravatar_profile_url(value),
+                    confidence="not_checked",
+                    evidence="Dry run only. Pass --live to check the public Gravatar profile.",
+                )
+            )
             return tuple(findings)
 
         try:
@@ -169,6 +182,7 @@ class EmailScanModule:
             backoff_seconds=config.http_backoff,
         )
         findings.append(_email_domain_ct_finding(self.name, value, domain, client))
+        findings.append(_gravatar_profile_finding(self.name, value, domain, client))
         findings.append(_email_auth_finding(self.name, value, classify_spf_policy(domain, txt_result)))
 
         dmarc_result = lookup_dns_records(f"_dmarc.{domain}", "TXT", timeout=config.timeout)
@@ -435,4 +449,94 @@ def _email_auth_finding(module: str, email: str, policy: EmailAuthPolicy) -> Fin
         confidence=policy.confidence,
         evidence=policy.evidence,
         metadata=policy.metadata,
+    )
+
+
+def _gravatar_hash(email: str) -> str:
+    return hashlib.md5(email.strip().lower().encode("utf-8")).hexdigest()
+
+
+def _gravatar_profile_url(email: str) -> str:
+    return f"https://en.gravatar.com/{_gravatar_hash(email)}.json"
+
+
+def _gravatar_profile_finding(module: str, email: str, domain: str, client: HttpClient) -> Finding:
+    """Public Gravatar profile attached to the email hash (self-published data)."""
+    avatar_url = f"https://www.gravatar.com/avatar/{_gravatar_hash(email)}?d=404"
+    profile_url = _gravatar_profile_url(email)
+    avatar = client.check(avatar_url)
+    if avatar.status_code == 404:
+        return Finding(
+            module=module,
+            source="gravatar-profile",
+            target=email,
+            status="not_found",
+            url=profile_url,
+            http_status=404,
+            confidence="high",
+            evidence="No public Gravatar exists for this email hash.",
+            metadata={"domain": domain},
+        )
+    if avatar.status_code != 200:
+        return Finding(
+            module=module,
+            source="gravatar-profile",
+            target=email,
+            status="unknown",
+            url=profile_url,
+            http_status=avatar.status_code,
+            confidence="low",
+            evidence=avatar.error or f"HTTP {avatar.status_code} from Gravatar.",
+            metadata={"domain": domain},
+        )
+    profile = client.check(profile_url)
+    entry: dict = {}
+    if profile.status_code == 200:
+        try:
+            payload = json.loads(profile.body_text)
+            entries = payload.get("entry") if isinstance(payload, dict) else None
+            if isinstance(entries, list) and entries and isinstance(entries[0], dict):
+                entry = entries[0]
+        except json.JSONDecodeError:
+            entry = {}
+    metadata = {"domain": domain}
+    for key in (
+        "preferredUsername", "displayName", "currentLocation",
+    ):
+        value = str(entry.get(key) or "").strip()
+        if value:
+            metadata[key] = value[:200]
+    about = str(entry.get("aboutMe") or "").strip()
+    if about:
+        metadata["about"] = re.sub(r"\s+", " ", about)[:300]
+    accounts = [
+        f"{str(account.get('shortname') or account.get('domain') or '')}: {account.get('url')}"
+        for account in (entry.get("accounts") or [])
+        if isinstance(account, dict) and account.get("url")
+    ]
+    if accounts:
+        metadata["verified_accounts"] = ", ".join(accounts)[:400]
+    if entry:
+        return Finding(
+            module=module,
+            source="gravatar-profile",
+            target=email,
+            status="candidate",
+            url=str(entry.get("profileUrl") or f"https://gravatar.com/{entry.get('preferredUsername', '')}"),
+            title=str(entry.get("displayName") or entry.get("preferredUsername") or ""),
+            http_status=profile.status_code,
+            confidence="medium",
+            evidence="Public Gravatar profile exists for this email hash.",
+            metadata=metadata,
+        )
+    return Finding(
+        module=module,
+        source="gravatar-profile",
+        target=email,
+        status="candidate",
+        url=f"https://gravatar.com/{_gravatar_hash(email)}",
+        http_status=avatar.status_code,
+        confidence="low",
+        evidence="Public Gravatar avatar exists; profile JSON was unavailable.",
+        metadata=metadata,
     )

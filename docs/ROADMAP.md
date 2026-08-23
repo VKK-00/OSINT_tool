@@ -22,6 +22,7 @@
 - [x] HTML-звіт з графом зв'язків
 
 ## v0.3
+- [x] Персо-OSINT збагачення з публічних джерел: GitHub/Mastodon/Bluesky профілі (username), Wikidata дізамбігуація осіб (person), Gravatar-профіль (email live)
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
 - [ ] Моніторинг: diff між сканами каналу/профілю у часі
 - [ ] Інтеграція bellingcat auto-archiver для медіа

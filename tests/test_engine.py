@@ -1150,7 +1150,7 @@ class EngineTests(unittest.TestCase):
         findings = engine.scan(ScanTarget(kind="email", value="person@example.com"), RunConfig())
         sources = {finding.source: finding for finding in findings}
 
-        self.assertEqual(len(findings), 14)
+        self.assertEqual(len(findings), 15)
         self.assertEqual(findings[0].source, "syntax")
         self.assertEqual(findings[0].status, "valid")
         self.assertEqual(sources["local-part-profile"].status, "candidate")
@@ -1172,6 +1172,10 @@ class EngineTests(unittest.TestCase):
             "bimi-policy",
         ):
             self.assertEqual(sources[source].status, "planned")
+
+        gravatar = sources["gravatar-profile"]
+        self.assertEqual(gravatar.status, "planned")
+        self.assertIn("en.gravatar.com", gravatar.url)
 
     def test_email_local_part_profile_classifies_role_and_person_handles(self):
         role = profile_email_local_part("support")
