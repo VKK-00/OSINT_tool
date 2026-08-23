@@ -1,4 +1,5 @@
 from .domain import DomainScanModule
+from .domain_intel import InternetDbModule, UrlscanSearchModule, WaybackCdxModule
 from .email import EmailScanModule
 from .instagram import InstagramPublicProfileModule
 from .person import PersonNameScanModule
@@ -16,13 +17,16 @@ __all__ = [
     "EmailScanModule",
     "GitHubUserModule",
     "InstagramPublicProfileModule",
+    "InternetDbModule",
     "MastodonLookupModule",
     "PersonNameScanModule",
     "PhoneScanModule",
     "RuUaSourcePackModule",
     "SocialPublicProfileModule",
     "TelegramScanModule",
+    "UrlscanSearchModule",
     "UsernameScanModule",
+    "WaybackCdxModule",
     "WebMetadataModule",
     "WikidataPersonModule",
 ]

@@ -88,6 +88,47 @@ RU_UA_SOURCES: tuple[RuUaSource, ...] = (
         "Ukrainian pastebin resource referenced by awesome-osint.",
         ("jivoi/awesome-osint",),
     ),
+    # --- public registries (open personal/legal data, lawful-scope pivots) ---
+    RuUaSource(
+        "UA Court Register",
+        "https://reyestr.court.gov.ua/",
+        "public-registry",
+        "ua",
+        "Unified state register of Ukrainian court decisions; searchable by person or company name within lawful scope.",
+        ("cipher387/osint_stuff_tool_collection",),
+    ),
+    RuUaSource(
+        "UA Open Data Portal",
+        "https://data.gov.ua/",
+        "public-registry",
+        "ua",
+        "Ukrainian national open-data portal, including EDR and public-sector datasets.",
+        ("cipher387/osint_stuff_tool_collection",),
+    ),
+    RuUaSource(
+        "UA EDR Open Data",
+        "https://data.gov.ua/dataset/c0f0c4e7-dc84-4ecd-a119-03e6c9ff72a9",
+        "public-registry",
+        "ua",
+        "Open dataset of the Unified State Register of Ukrainian legal entities and individual entrepreneurs (EDR/ФОП).",
+        ("local-curation",),
+    ),
+    RuUaSource(
+        "RF EGRUL/EGRIP",
+        "https://egrul.nalog.ru/",
+        "public-registry",
+        "ru",
+        "Russian Federal Tax Service open register of legal entities and sole proprietors; free short report per entity.",
+        ("cipher387/osint_stuff_tool_collection",),
+    ),
+    RuUaSource(
+        "Fedresurs",
+        "https://fedresurs.ru/",
+        "public-registry",
+        "ru",
+        "Russian federal resource of legally significant publications: bankruptcies, pledges, liquidation notices.",
+        ("local-curation",),
+    ),
 )
 
 
