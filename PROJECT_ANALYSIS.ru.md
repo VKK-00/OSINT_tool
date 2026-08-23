@@ -80,10 +80,10 @@ CLI работает в пяти режимах:
 
 ## Структура репозитория
 
-- `top_100_osint_github_2026-06-24.csv` — исходный top-100 GitHub OSINT snapshot.
-- `osint_people_projects_2026-06-24.csv` — curated-срез OSINT по лицам.
-- `osint_ru_ua_projects_2026-06-24.csv` — curated-срез РФ/Украина/ru-platform.
-- `osint_people_ru_ua_2026-06-24.csv` — объединённая разметка people + ru/ua.
+- `data/top_100_osint_github_2026-06-24.csv` — исходный top-100 GitHub OSINT snapshot.
+- `data/osint_people_projects_2026-06-24.csv` — curated-срез OSINT по лицам.
+- `data/osint_ru_ua_projects_2026-06-24.csv` — curated-срез РФ/Украина/ru-platform.
+- `data/osint_people_ru_ua_2026-06-24.csv` — объединённая разметка people + ru/ua.
 - `osint_toolkit/` — Python-пакет CLI.
 - `osint_toolkit/modules/` — native scan-модули.
 - `osint_toolkit/environment.py` — Windows runtime env refresh для user/machine `PATH` и известных OSINT env variable names.

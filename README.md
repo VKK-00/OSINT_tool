@@ -11,7 +11,7 @@
 
 “1:1” в этом проекте означает: одинаковый класс входных данных, сопоставимый результат, единый статус/confidence и явный gap, если часть upstream-поведения ещё не покрыта. Adapter здесь не заглушка: это запуск реального upstream CLI/API и приведение его вывода к общей модели. Буквальное копирование исходников возможно только после проверки лицензии; иначе используется adapter или своя реализация того же поведения.
 
-Рабочая карта parity: [UPSTREAM_PARITY.ru.md](UPSTREAM_PARITY.ru.md).
+Рабочая карта parity: [UPSTREAM_PARITY.ru.md](UPSTREAM_PARITY.ru.md). План консолідації двох пакетів в один движок: [docs/MIGRATION_OSINTKIT.uk.md](docs/MIGRATION_OSINTKIT.uk.md).
 
 ## Deep-модули (интегрированный osintkit)
 
@@ -529,12 +529,12 @@ python -m osint_toolkit brief --task username --target-value "example_user" --re
 
 ## Источники данных
 
-По умолчанию CLI ищет CSV-файлы в корне текущего репозитория:
+По умолчанию CLI ищет CSV-файлы в папке `data/` репозитория:
 
-- `top_100_osint_github_2026-06-24.csv`
-- `osint_people_ru_ua_2026-06-24.csv`
-- `osint_people_projects_2026-06-24.csv`
-- `osint_ru_ua_projects_2026-06-24.csv`
+- `data/top_100_osint_github_2026-06-24.csv`
+- `data/osint_people_ru_ua_2026-06-24.csv`
+- `data/osint_people_projects_2026-06-24.csv`
+- `data/osint_ru_ua_projects_2026-06-24.csv`
 
 Встроенные package resources:
 
@@ -553,7 +553,9 @@ python -m osint_toolkit stats --data-dir C:\path\to\data
 ## Проверки
 
 ```powershell
-python -m unittest discover -s tests
+python -m pip install -e ".[dev]"
+python -m pytest
+python -m ruff check .
 ```
 
 ## Границы безопасности

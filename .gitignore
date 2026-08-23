@@ -1,11 +1,25 @@
-﻿out/
+# Runtime output
+out/
+reports/
+*.db
+cases.sqlite*
+.leaks/
+.leaks-index/
+
+# Python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
 venv/
 dist/
 build/
 *.egg-info/
+.ruff_cache/
+
+# Local config / scratch
 config.toml
+profiles/*.json
+
+# Test fixtures generated locally
 test_photo.jpg
-.leaks/
