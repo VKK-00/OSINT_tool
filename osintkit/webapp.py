@@ -57,16 +57,26 @@ async def start_scan(req: ScanRequest) -> dict:
 
 
 async def _run_job(job_id: str, modules, target: str) -> None:
+    from osintkit.output import annotate_new
     job = JOBS[job_id]
+    collected = []
     http = HttpClient()
     try:
         tasks = [asyncio.create_task(m.safe_run(target, http)) for m in modules]
         for coro in asyncio.as_completed(tasks):
             res = await coro
+            collected.append(res)
             job["results"].append(res.as_dict())
     finally:
         await http.aclose()
         job["status"] = "done"
+        try:
+            n_new = annotate_new(target, collected)
+        except Exception:
+            n_new = 0
+        if n_new:
+            job["new_count"] = n_new
+            job["results"] = [r.as_dict() for r in collected]
         try:
             import json
             outdir = pathlib.Path("out")
@@ -114,6 +124,43 @@ async def get_report(name: str) -> dict:
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+# ------------------------------------------------------------ admin ops ----
+
+ADMIN: dict[str, str] = {"state": "idle", "message": ""}
+
+
+async def _admin_task(fn, *args) -> None:
+    ADMIN.update(state="running", message="")
+    try:
+        stats = await asyncio.to_thread(fn, *args)
+        ADMIN.update(state="done", message=str(stats))
+    except Exception as exc:  # noqa: BLE001
+        ADMIN.update(state="error", message=f"{type(exc).__name__}: {exc}")
+
+
+@app.post("/api/admin/leaks")
+async def admin_leaks(body: dict) -> dict:
+    path = (body or {}).get("path", "").strip()
+    if not path:
+        raise HTTPException(400, "path required")
+    from osintkit import store
+    asyncio.create_task(_admin_task(store.import_leaks, path))
+    return {"started": True}
+
+
+@app.post("/api/admin/sanctions")
+async def admin_sanctions(body: dict | None = None) -> dict:
+    from osintkit import store
+    file_path = ((body or {}).get("file") or "").strip() or None
+    asyncio.create_task(_admin_task(store.update_sanctions, store.SANCTIONS_CSV_URL, file_path))
+    return {"started": True}
+
+
+@app.get("/api/admin/status")
+async def admin_status() -> dict:
+    return dict(ADMIN)
 
 
 def main() -> None:

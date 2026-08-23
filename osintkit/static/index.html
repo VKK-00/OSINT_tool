@@ -60,6 +60,16 @@
   .conf.high { color: var(--green); border: 1px solid var(--green); }
   .conf.medium { color: var(--yellow); border: 1px solid var(--yellow); }
   .conf.low { color: var(--dim); border: 1px solid var(--dim); }
+  .badge-new { font-size: 10.5px; font-weight: 700; color: #fff; background: var(--accent);
+               border-radius: 8px; padding: 1px 7px; flex-shrink: 0; letter-spacing: .04em; }
+  .adminrow { display: flex; gap: 6px; margin-bottom: 8px; }
+  .adminrow input { flex: 1; min-width: 0; background: #0d1117; border: 1px solid var(--border);
+                    color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  .mini { background: #21262d; border: none; color: var(--text); font-size: 12px;
+          border-radius: 6px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .mini:hover { filter: brightness(1.2); }
+  #adminStatus { font-size: 11.5px; color: var(--dim); word-break: break-word; }
+  #adminStatus.done { color: var(--green); } #adminStatus.error, #adminStatus.running { color: var(--yellow); }
   .err { color: var(--red); font-size: 13px; }
   .empty { color: var(--dim); font-style: italic; font-size: 13px; padding: 4px 0; }
   .hist-item { display: block; width: 100%; text-align: left; background: none;
@@ -80,6 +90,16 @@
   <div id="modules"></div>
   <div class="hint"><a href="#" onclick="toggleAll(true);return false" style="color:var(--accent)">увімкнути всі</a> ·
                     <a href="#" onclick="toggleAll(false);return false" style="color:var(--accent)">вимкнути всі</a></div>
+
+  <h2>Дані</h2>
+  <div class="adminrow">
+    <input type="text" id="leakPath" placeholder="шлях до файлу/папки витоків">
+    <button class="mini" onclick="adminOp('leaks')">Імпорт</button>
+  </div>
+  <div class="adminrow">
+    <button class="mini" style="flex:1" onclick="adminOp('sanctions')">⟳ Оновити санкційні списки (OpenSanctions)</button>
+  </div>
+  <div id="adminStatus">індекси: leaks — локальні, sanctions — через CLI або кнопку вище</div>
 
   <h2>Історія звітів</h2>
   <div id="history"><div class="empty">порожньо</div></div>
@@ -199,13 +219,15 @@ function renderResults(results, target, staticReport) {
         val += '<br><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.url.slice(0,90)) + '</a>';
       if (f.extra)
         for (const [k,v] of Object.entries(f.extra)) {
-          if (!v) continue;
+          if (!v || k === 'new') continue;
           const vv = typeof v === 'string' ? v : JSON.stringify(v);
           val += '\n<span style="color:var(--dim)">' + esc(k) + ': </span>' + esc(vv).slice(0, 300);
         }
+      const isNew = f.extra && f.extra.new;
       card.insertAdjacentHTML('beforeend',
         '<div class="finding"><span class="kind">' + esc(f.kind) + '</span>' +
         '<span class="val">' + val + '</span>' +
+        (isNew ? '<span class="badge-new">NEW</span>' : '') +
         '<span class="conf ' + f.confidence + '">' + f.confidence + '</span></div>');
     }
     box.appendChild(card);
@@ -225,6 +247,31 @@ function setStatus(msg, isErr) {
   const el = document.getElementById('status');
   el.textContent = msg;
   el.style.color = isErr ? 'var(--red)' : 'var(--dim)';
+}
+
+let adminTimer = null;
+function adminOp(kind) {
+  const body = kind === 'leaks'
+    ? { path: document.getElementById('leakPath').value.trim() }
+    : { file: null };
+  if (kind === 'leaks' && !body.path) { setAdmin('error', 'Вкажи шлях'); return; }
+  fetch(API + '/api/admin/' + kind, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(() => {
+    setAdmin('running', 'виконується…');
+    clearInterval(adminTimer);
+    adminTimer = setInterval(async () => {
+      const s = await (await fetch(API + '/api/admin/status')).json();
+      setAdmin(s.state, s.message);
+      if (s.state !== 'running') clearInterval(adminTimer);
+    }, 1500);
+  }).catch(e => setAdmin('error', e.message));
+}
+function setAdmin(state, msg) {
+  const el = document.getElementById('adminStatus');
+  el.className = state === 'idle' ? '' : state;
+  el.textContent = state === 'idle' ? msg : state + ': ' + msg;
 }
 function prog(on) {
   document.getElementById('prog').style.visibility = on ? 'visible' : 'hidden';

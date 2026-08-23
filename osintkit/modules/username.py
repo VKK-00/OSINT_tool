@@ -43,6 +43,11 @@ SITES: list[Site] = [
     Site("Roblox", "https://www.roblox.com/users/profile?username={}", "", "low"),
     Site("Spotify", "https://open.spotify.com/user/{}", "", "medium"),
     Site("Mastodon (mastodon.social)", "https://mastodon.social/@{}", "The page you are looking for isn't here"),
+    Site("GitLab", "https://gitlab.com/{}", ""),
+    Site("Medium", "https://medium.com/@{}", ""),
+    Site("Keybase", "https://keybase.io/{}", ""),
+    Site("Last.fm", "https://www.last.fm/user/{}", "Whoops // Sorry, but something went wrong"),
+    Site("Habr Career", "https://career.habr.com/{}", ""),
 ]
 
 
