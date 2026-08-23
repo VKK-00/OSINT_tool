@@ -3,7 +3,16 @@ on:
   push:
   pull_request:
 jobs:
-  smoke:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: python -m ruff check .
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -11,4 +20,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install httpx phonenumbers rich pillow fastapi uvicorn pytest
-      - run: python -m pytest tests/test_smoke.py -q
+      - run: python -m pytest -q

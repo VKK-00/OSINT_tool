@@ -3,8 +3,8 @@ from __future__ import annotations
 import csv
 import io
 import json
-import shutil
 import shlex
+import shutil
 import subprocess
 from dataclasses import dataclass
 
@@ -552,10 +552,10 @@ def _rows_csv(rows: tuple[ToolReadiness, ...]) -> str:
 def _table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
     widths = [len(header) for header in headers]
     for row in rows:
-        widths = [max(width, len(cell)) for width, cell in zip(widths, row)]
-    line = "  ".join(header.ljust(width) for header, width in zip(headers, widths))
+        widths = [max(width, len(cell)) for width, cell in zip(widths, row, strict=False)]
+    line = "  ".join(header.ljust(width) for header, width in zip(headers, widths, strict=False))
     sep = "  ".join("-" * width for width in widths)
-    body = ["  ".join(cell.ljust(width) for cell, width in zip(row, widths)) for row in rows]
+    body = ["  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=False)) for row in rows]
     return "\n".join([line, sep, *body])
 
 

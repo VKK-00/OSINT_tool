@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 from osint_toolkit.adapter_parsers import parse_adapter_output
 from osint_toolkit.adapter_runner import run_adapter_findings
-from osint_toolkit.entities import entities_from_findings
 from osint_toolkit.engine import ScanTarget
+from osint_toolkit.entities import entities_from_findings
 
 
 class AdapterParserTests(unittest.TestCase):

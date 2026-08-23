@@ -228,8 +228,9 @@ async def add_watch(req: WatchRequest) -> dict:
 
 async def _watch_loop(wid: str) -> None:
     """Re-scan the target on an interval; diff each run against the last."""
-    from osintkit.output import annotate_new
     import datetime
+
+    from osintkit.output import annotate_new
     while wid in WATCHES:
         w = WATCHES[wid]
         all_modules = {m.name: m for m in get_all()}
@@ -314,6 +315,7 @@ async def admin_status() -> dict:
 
 def main() -> None:
     import argparse
+
     import uvicorn
     parser = argparse.ArgumentParser(description="osintkit web UI")
     parser.add_argument("--host", default="127.0.0.1")

@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from ..engine import Finding, RunConfig, ScanTarget
 
-
 COUNTRY_PREFIXES: tuple[tuple[str, str, str], ...] = (
     ("+380", "Ukraine", "ua"),
     ("+7", "Russia/Kazakhstan", "ru"),

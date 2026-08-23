@@ -22,7 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-V", "--version", action="version", version=f"osintkit {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
-    modules = {m.name: m for m in get_all()}
+    # import side-effects register all modules
+    get_all()
 
     scan = sub.add_parser("scan", help="Run one or more modules against a target")
     scan.add_argument("target", nargs="?", default="",
@@ -95,6 +96,7 @@ async def cmd_scan(args) -> int:
         console.print(f"\n[bold green]Report saved →[/] {path}")
         try:
             import json
+
             from osintkit.report_html import render_html_report
             data = json.loads(open(path, encoding="utf-8").read())
             html_path = render_html_report(
@@ -163,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         import json
         import pathlib
+
         from osintkit.report_html import render_html_report
         src = pathlib.Path(args.json_path)
         if not src.exists():

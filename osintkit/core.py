@@ -142,7 +142,9 @@ def _apply(word: str, table: dict[str, str]) -> str:
     while i < len(low):
         two = low[i:i+2]
         if two in table:
-            out.append(table[two]); i += 2; continue
+            out.append(table[two])
+            i += 2
+            continue
         ch = low[i]
         if ch in table:
             out.append(table[ch])

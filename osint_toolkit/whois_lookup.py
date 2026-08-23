@@ -146,7 +146,7 @@ def parse_whois_domain_record(
 def _query_whois(server: str, query: str, *, timeout: float) -> str:
     with socket.create_connection((server, 43), timeout=timeout) as connection:
         connection.settimeout(timeout)
-        connection.sendall(f"{query}\r\n".encode("utf-8"))
+        connection.sendall(f"{query}\r\n".encode())
         chunks: list[bytes] = []
         total = 0
         while total < WHOIS_RESPONSE_LIMIT:

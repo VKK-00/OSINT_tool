@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from typing import Iterable
+from collections.abc import Iterable
 
 from .adapter_setup import AdapterSetup
 from .adapters import AdapterProfile, AdapterSpec
@@ -1554,10 +1554,10 @@ def _markdown_neighbors(analysis: GraphAnalysis) -> list[str]:
 def _format_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> str:
     widths = [len(header) for header in headers]
     for row in rows:
-        widths = [max(width, len(cell)) for width, cell in zip(widths, row)]
-    line = "  ".join(header.ljust(width) for header, width in zip(headers, widths))
+        widths = [max(width, len(cell)) for width, cell in zip(widths, row, strict=False)]
+    line = "  ".join(header.ljust(width) for header, width in zip(headers, widths, strict=False))
     sep = "  ".join("-" * width for width in widths)
-    body = ["  ".join(cell.ljust(width) for cell, width in zip(row, widths)) for row in rows]
+    body = ["  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=False)) for row in rows]
     return "\n".join([line, sep, *body])
 
 

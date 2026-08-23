@@ -8,8 +8,8 @@ from pathlib import Path
 
 from .adapter_runner import run_adapter_findings
 from .adapters import ADAPTERS, AdapterSpec, find_adapter
-from .entities import Entity, entities_from_findings, entities_from_targets, merge_entities
 from .engine import Engine, Finding, RunConfig, ScanTarget
+from .entities import Entity, entities_from_findings, entities_from_targets, merge_entities
 from .graph import GraphEdge, graph_edges_from_case
 from .runtime import build_default_engine
 

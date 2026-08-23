@@ -7,7 +7,8 @@ operator prefixes without any external API.
 from __future__ import annotations
 
 import phonenumbers
-from phonenumbers import carrier, geocoder, timezone as pn_tz
+from phonenumbers import carrier, geocoder
+from phonenumbers import timezone as pn_tz
 
 from osintkit.core import Finding, HttpClient
 from osintkit.modules.base import Module, register

@@ -18,7 +18,7 @@ from .case_export import export_case_package, export_cases_package
 from .case_store import CaseStore, CaseStoreError
 from .environment import refresh_runtime_environment
 from .graph import analyze_case_graph, analyze_cross_case_network, analyze_cross_case_path
-from .output import findings_from_case_payload, finding_source_summary, format_case_source_summary
+from .output import finding_source_summary, findings_from_case_payload, format_case_source_summary
 from .search import (
     TARGET_KINDS,
     SearchProfile,
@@ -29,14 +29,13 @@ from .search import (
 )
 from .toolbox import render_toolbox_html, write_toolbox
 from .tools import (
-    build_tool_install_results,
     build_profile_tool_readiness,
+    build_tool_install_results,
     format_env_plan,
     format_install_plan,
     format_tool_install_results,
     format_tool_readiness,
 )
-
 
 VALID_TARGET_KINDS = ("auto", *TARGET_KINDS)
 VALID_REGIONS = ("all", "ru", "ua")

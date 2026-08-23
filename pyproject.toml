@@ -21,6 +21,26 @@ osint-toolkit = "osint_toolkit.cli:main"
 osintkit = "osintkit.__main__:main"
 osintkit-web = "osintkit.webapp:main"
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+  "E501",  # long lines are common in generated report/docstrings
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["osint_toolkit*", "osintkit*"]

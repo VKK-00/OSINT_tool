@@ -6,9 +6,9 @@ Then:                  osintkit scan -m sanctions "ivanov"
 """
 from __future__ import annotations
 
+from osintkit import store
 from osintkit.core import Finding
 from osintkit.modules.base import Module, register
-from osintkit import store
 
 
 @register

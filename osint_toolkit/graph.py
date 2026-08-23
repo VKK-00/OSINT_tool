@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from heapq import heappop, heappush
-import re
-from typing import Iterable, Mapping
 from urllib.parse import urlparse
 
-from .entities import Entity
 from .engine import Finding, ScanTarget
+from .entities import Entity
 
 
 @dataclass(frozen=True)

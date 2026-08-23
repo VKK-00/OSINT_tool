@@ -7,12 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from .adapter_runtime import render_adapter_command
 from .adapter_runner import format_command
+from .adapter_runtime import render_adapter_command
 from .adapter_setup import AdapterSetup, build_adapter_setup
 from .adapters import expand_adapter_repositories, filter_adapters, find_adapter, find_adapter_profile
 from .engine import ScanTarget
-
 
 TARGET_KINDS: tuple[str, ...] = (
     "person",

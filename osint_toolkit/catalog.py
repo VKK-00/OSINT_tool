@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from .models import OsintProject
 
@@ -26,7 +26,7 @@ class Catalog:
         self._by_name = {project.full_name.lower(): project for project in self.projects}
 
     @classmethod
-    def load(cls, data_dir: str | Path | None = None) -> "Catalog":
+    def load(cls, data_dir: str | Path | None = None) -> Catalog:
         root = Path(data_dir).resolve() if data_dir else default_data_dir()
         top100 = _read_csv(root / TOP100_FILE)
         combined = {row["full_name"]: row for row in _read_csv(root / COMBINED_FILE)}
@@ -134,7 +134,7 @@ class Catalog:
 
 
 def default_data_dir() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[1] / "data"
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:

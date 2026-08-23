@@ -180,7 +180,7 @@ def search_sanctions(name: str, limit: int = 30) -> list[dict]:
                FROM sanctions WHERE name LIKE ? ESCAPE '\\'
                ORDER BY LENGTH(name) LIMIT ?""", (f"%{q}%", limit))
         return [dict(zip(("name", "schema", "countries", "topics",
-                          "birth_date", "notes"), r))
+                          "birth_date", "notes"), r, strict=False))
                 for r in cur.fetchall()]
     finally:
         conn.close()

@@ -7,7 +7,6 @@ from osint_toolkit.modules.deep_sanctions import SanctionsIndexModule
 from osint_toolkit.modules.dorks import DorksModule
 from osint_toolkit.runtime import build_default_engine
 
-
 CONFIG = RunConfig()
 
 

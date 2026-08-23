@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import re
-from string import Formatter
 from dataclasses import dataclass, replace
 from importlib import resources
+from string import Formatter
 from typing import Any
-
 
 DEFAULT_USERNAME_PATTERN = r"(?:[A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9._-]{0,62}[A-Za-z0-9])"
 DEFAULT_USERNAME_RULE_NOTE = "letters, numbers, dot, underscore or dash; no leading/trailing separator"

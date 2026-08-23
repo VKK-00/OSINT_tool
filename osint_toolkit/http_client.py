@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import time
 import html
 import re
 import ssl
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-
 
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 

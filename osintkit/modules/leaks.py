@@ -5,9 +5,9 @@ Then scan:     osintkit scan -m leaks "ivan_petrov"
 """
 from __future__ import annotations
 
+from osintkit import store
 from osintkit.core import Finding
 from osintkit.modules.base import Module, register
-from osintkit import store
 
 
 @register

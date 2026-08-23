@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+
 from osintkit.core import Finding, HttpClient, ModuleResult
 
 
@@ -46,7 +47,16 @@ def register(cls: type[Module]) -> type[Module]:
 def get_all() -> list[Module]:
     # import side-effects register everything
     from osintkit.modules import (  # noqa: F401
-        username, email_check, phone_info, net_recon,
-        telegram, web_archive, geo, leaks, sanctions, dorks, image_osint,
+        dorks,
+        email_check,
+        geo,
+        image_osint,
+        leaks,
+        net_recon,
+        phone_info,
+        sanctions,
+        telegram,
+        username,
+        web_archive,
     )
     return list(REGISTRY.values())

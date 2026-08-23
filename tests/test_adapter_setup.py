@@ -3,8 +3,8 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from osint_toolkit.adapter_runtime import render_adapter_command, render_adapter_output_dir_args
 from osint_toolkit.adapter_runner import run_adapter_findings
+from osint_toolkit.adapter_runtime import render_adapter_command, render_adapter_output_dir_args
 from osint_toolkit.adapter_setup import build_adapter_setup
 from osint_toolkit.adapters import find_adapter
 from osint_toolkit.doctor import inspect_adapters

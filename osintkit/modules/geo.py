@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-import urllib.parse
 
 from osintkit.core import Finding, HttpClient
 from osintkit.modules.base import Module, register
@@ -26,7 +25,7 @@ def _sun_position(lat: float, lon: float, when: dt.datetime) -> tuple[float, flo
     dec = math.asin(math.sin(eps) * math.sin(lam))
     ra = math.atan2(math.cos(eps) * math.sin(lam), math.cos(lam))
     gmst = (18.697374558 + 24.06570982441908 * n) % 24
-    lst = math.radians(((gmst * 15 + lon) % 360))
+    lst = math.radians((gmst * 15 + lon) % 360)
     ha = lst - ra
     lat_r = math.radians(lat)
     alt = math.asin(math.sin(lat_r) * math.sin(dec) + math.cos(lat_r) * math.cos(dec) * math.cos(ha))
@@ -52,7 +51,6 @@ class GeoModule(Module):
         lat, lon = float(lat_s), float(lon_s)
         findings: list[Finding] = []
 
-        q = urllib.parse.quote(f"{lat},{lon}")
         findings.append(Finding(kind="geo", source=self.name,
                                 value=f"{lat:.5f},{lon:.5f}", confidence="high",
                                 extra={

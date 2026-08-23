@@ -49,7 +49,7 @@ def resolve_adapter_runtime(
     executable = ", ".join(executables)
     executable_path = ", ".join(path for path in executable_paths if path)
     missing_executables = tuple(
-        executable for executable, path in zip(executables, executable_paths) if not path
+        executable for executable, path in zip(executables, executable_paths, strict=False) if not path
     )
 
     if not missing_executables:

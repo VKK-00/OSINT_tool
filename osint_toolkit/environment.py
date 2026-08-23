@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from collections.abc import Iterable
 
-
 OSINT_ENV_KEYS: tuple[str, ...] = (
     "AMASS_CONFIG",
     "BBOT_DOCKER_CONFIG_DIR",

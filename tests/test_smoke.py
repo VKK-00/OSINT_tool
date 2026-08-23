@@ -16,8 +16,9 @@ def test_transliterate_bidirectional():
 
 def test_phone_parsing():
     import asyncio
-    from osintkit.modules.phone_info import PhoneModule
+
     from osintkit.core import HttpClient
+    from osintkit.modules.phone_info import PhoneModule
 
     async def go():
         http = HttpClient()
@@ -33,7 +34,6 @@ def test_phone_parsing():
 
 
 def test_store_roundtrip(tmp_path):
-    import pathlib
     from osintkit import store
 
     f = tmp_path / "leak.txt"

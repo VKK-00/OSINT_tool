@@ -7,7 +7,6 @@ from pathlib import Path
 from .catalog import Catalog
 from .models import OsintProject
 
-
 SAFETY_BOUNDARIES = (
     "Use only public, lawfully accessible sources.",
     "Document lawful basis, consent or legitimate research purpose before collecting personal data.",

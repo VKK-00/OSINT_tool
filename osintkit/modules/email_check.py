@@ -87,7 +87,7 @@ class EmailModule(Module):
             if mxvals:
                 findings.append(Finding(
                     kind="email", source=self.name,
-                    value=f"Domain accepts mail: " + ", ".join(
+                    value="Domain accepts mail: " + ", ".join(
                         v.split(" ")[-1].rstrip(".") for v in mxvals[:4]),
                     confidence="medium",
                     extra={"mx": [v for v in mxvals[:6]]}))

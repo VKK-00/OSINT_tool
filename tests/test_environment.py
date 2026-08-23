@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from osint_toolkit.environment import refresh_runtime_environment, _merge_path_values
+from osint_toolkit.environment import _merge_path_values, refresh_runtime_environment
 
 
 class EnvironmentTests(unittest.TestCase):

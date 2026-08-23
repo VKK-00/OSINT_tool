@@ -9,13 +9,13 @@ from pathlib import Path
 from .adapter_runner import run_adapter_findings
 from .adapter_setup import build_adapter_setups
 from .adapters import expand_adapter_repositories, filter_adapters, find_adapter, list_adapter_profiles
-from .case_store import CaseStore, CaseStoreError
 from .case_export import (
     export_case_package,
     export_cases_package,
     format_case_export_result,
     format_cases_export_result,
 )
+from .case_store import CaseStore, CaseStoreError
 from .catalog import Catalog, CatalogError
 from .doctor import inspect_adapters
 from .engine import RunConfig, ScanTarget
@@ -30,25 +30,25 @@ from .investigation import (
 )
 from .output import (
     finding_source_summary,
-    format_adapters,
     format_adapter_profiles,
     format_adapter_setups,
+    format_adapters,
+    format_case_delete_result,
+    format_case_detail,
     format_case_entity_hits,
     format_case_entity_index,
     format_case_graph_analysis,
-    format_cross_case_network_analysis,
-    format_cross_case_path_analysis,
-    format_case_delete_result,
-    format_case_detail,
     format_case_source_summary,
     format_cases,
-    format_findings,
+    format_cross_case_network_analysis,
+    format_cross_case_path_analysis,
     format_finding_source_summary,
+    format_findings,
     format_project_detail,
     format_projects,
+    format_search_plan,
     format_search_profile_detail,
     format_search_profiles,
-    format_search_plan,
     format_stats,
 )
 from .runtime import build_default_engine
@@ -1033,7 +1033,7 @@ def _targets_from_args(args: argparse.Namespace) -> tuple[ScanTarget, ...]:
     for kind in ("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social"):
         for value in getattr(args, kind):
             targets.append(ScanTarget(kind=kind, value=value, region=args.region))
-    for value in getattr(args, "ru_ua"):
+    for value in args.ru_ua:
         targets.append(ScanTarget(kind="ru-ua", value=value, region=args.region))
     return tuple(targets)
 

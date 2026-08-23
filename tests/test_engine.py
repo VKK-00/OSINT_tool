@@ -4,14 +4,23 @@ import unittest
 import urllib.error
 from unittest.mock import patch
 
-from osint_toolkit.adapters import filter_adapters
 from osint_toolkit.adapter_runner import run_adapter, run_adapter_findings
+from osint_toolkit.adapters import filter_adapters
 from osint_toolkit.dns_lookup import DnsLookupResult
 from osint_toolkit.doctor import inspect_adapters
 from osint_toolkit.engine import Engine, RunConfig, ScanTarget
 from osint_toolkit.http_client import HttpClient, HttpResult
 from osint_toolkit.investigation import render_investigation_json, render_investigation_markdown, run_investigation
-from osint_toolkit.modules import DomainScanModule, EmailScanModule, InstagramPublicProfileModule, PersonNameScanModule, PhoneScanModule, SocialPublicProfileModule, UsernameScanModule, WebMetadataModule
+from osint_toolkit.modules import (
+    DomainScanModule,
+    EmailScanModule,
+    InstagramPublicProfileModule,
+    PersonNameScanModule,
+    PhoneScanModule,
+    SocialPublicProfileModule,
+    UsernameScanModule,
+    WebMetadataModule,
+)
 from osint_toolkit.modules.domain import normalize_domain, parse_crtsh_subdomains, parse_rdap_domain_record
 from osint_toolkit.modules.email import profile_email_local_part
 from osint_toolkit.modules.instagram import extract_instagram_public_metadata, normalize_instagram_target
@@ -21,7 +30,6 @@ from osint_toolkit.modules.ru_ua_sources import RuUaSourcePackModule
 from osint_toolkit.modules.social import extract_social_public_metadata, normalize_social_target
 from osint_toolkit.modules.telegram import TelegramScanModule, normalize_telegram_target
 from osint_toolkit.modules.username import classify_username_http_result, normalize_username
-from osint_toolkit.whois_lookup import WhoisDomainRecord, parse_whois_domain_record
 from osint_toolkit.sites import (
     MAIGRET_IMPORTED_SITE_COUNT,
     SHERLOCK_IMPORTED_SITE_COUNT,
@@ -29,6 +37,7 @@ from osint_toolkit.sites import (
     WHATSMYNAME_IMPORTED_SITE_COUNT,
     UsernameSite,
 )
+from osint_toolkit.whois_lookup import WhoisDomainRecord, parse_whois_domain_record
 
 
 class _FakeHttpResponse:

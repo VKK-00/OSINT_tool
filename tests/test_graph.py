@@ -4,8 +4,8 @@ from pathlib import Path
 
 from osint_toolkit.adapter_parsers import parse_adapter_output
 from osint_toolkit.case_store import CaseStore
-from osint_toolkit.entities import entities_from_findings, entities_from_targets, merge_entities
 from osint_toolkit.engine import Finding, ScanTarget
+from osint_toolkit.entities import entities_from_findings, entities_from_targets, merge_entities
 from osint_toolkit.graph import (
     analyze_case_graph,
     analyze_cross_case_network,
