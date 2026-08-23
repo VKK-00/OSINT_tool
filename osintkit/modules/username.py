@@ -34,8 +34,8 @@ SITES: list[Site] = [
     Site("X/Twitter", "https://x.com/{}", "", "medium"),
     Site("Reddit", "https://www.reddit.com/user/{}/about.json", '"error": 404'),
     Site("YouTube", "https://www.youtube.com/@{}", "This page isn't available", "medium"),
-    Site("Steam", "https://steamcommunity.com/id/{}/", "The specified profile could not be found"),
-    Site("Twitch", "https://m.twitch.tv/{}", "", "medium"),
+    Site("Steam", "https://steamcommunity.com/id/{}/", "Steam Community :: Error"),
+    Site("Twitch", "https://m.twitch.tv/{}", "", "low"),
     Site("SoundCloud", "https://soundcloud.com/{}", "", "medium"),
     Site("Pinterest", "https://www.pinterest.com/{}/", "", "medium"),
     Site("Flickr", "https://www.flickr.com/people/{}", "", "medium"),
@@ -58,26 +58,68 @@ class UsernameModule(Module):
     target_hint = "e.g. ivanov1990"
 
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
-        findings: list[Finding] = []
+        import asyncio
+        import re
+
+        def enrich(site: Site, body: str) -> dict:
+            """Pull og:title / page title from captured HTML when possible."""
+            extra: dict = {}
+            m = re.search(r'<meta property="og:title" content="([^"]*)"', body)
+            if m and m.group(1).strip() and "telegram" not in m.group(1).lower():
+                extra["title"] = m.group(1).strip()[:120]
+            else:
+                m2 = re.search(r"<title>([^<]{3,120})</title>", body)
+                if m2 and site.name != "Telegram":
+                    t = m2.group(1).strip()
+                    if not re.search(r"not found|error", t, re.I):
+                        extra["title"] = t[:120]
+            return extra
+
+        GENERIC_TITLES = {
+            "twitch", "spotify – web player", "tiktok - make your day",
+            "steam community :: error", "just a moment...", "page not found",
+        }
+
+        async def check(site: Site, handle: str):
+            url = site.url.replace("{}", handle)
+            status, body = await http.head_or_get_status(url)
+            if status != 200:
+                return None
+            low_body = body.lower()
+            if site.name == "Telegram":
+                # t.me/<user> shows "contact @handle" both for existing users;
+                # absence of the alias means nothing there.
+                if ("@" + handle.lower()) not in low_body:
+                    return None
+            if site.not_found_marker and site.not_found_marker in body:
+                return None
+            extra = {"handle": handle}
+            extra.update(enrich(site, body))
+            title_low = extra.get("title", "").lower().strip()
+            if title_low in GENERIC_TITLES:
+                return None          # SPA shell / error page — not a profile
+            value = f"{site.name}: '{handle}' exists"
+            if extra.get("title"):
+                value += " — " + extra["title"]
+            return Finding(
+                kind="profile",
+                source=f"{site.name} ({self.name})",
+                value=value,
+                confidence=site.confidence,
+                url=url,
+                extra=extra,
+            )
+
         handles = [target] + transliterate(target)
-        for handle in handles:
-            for site in SITES:
-                url = site.url.replace("{}", handle)
-                status, body = await http.head_or_get_status(url)
-                if status == -1:
-                    continue
-                present = status == 200 and (
-                    not site.not_found_marker or site.not_found_marker not in body
-                )
-                if present and site.not_found_marker == "" and status != 200:
-                    present = False
-                if present:
-                    findings.append(Finding(
-                        kind="profile",
-                        source=f"{site.name} ({self.name})",
-                        value=f"{site.name}: '{handle}' exists",
-                        confidence=site.confidence,
-                        url=url,
-                        extra={"handle": handle},
-                    ))
-        return findings
+        results_raw = await asyncio.gather(*[
+            check(s, h) for h in handles for s in SITES])
+        out = []
+        variant_handles = set(handles[1:])
+        for r in results_raw:
+            if r is None:
+                continue
+            if r.extra.get("handle") in variant_handles:
+                r.confidence = {"high": "medium", "medium": "low",
+                                "low": "low"}[r.confidence]
+            out.append(r)
+        return out

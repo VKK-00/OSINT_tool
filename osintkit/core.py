@@ -85,7 +85,8 @@ class HttpClient:
         import json
         return json.loads(await self.get_text(url, headers=headers))
 
-    async def head_or_get_status(self, url: str, retries: int = 1) -> tuple[int, str]:
+    async def head_or_get_status(self, url: str, retries: int = 1,
+                                 max_chars: int = 20000) -> tuple[int, str]:
         """Return (status_code, first_bytes_of_body). Never raises.
         One retry on transient failures (connection errors, 429, 5xx)."""
         last_status, body = -1, ""
@@ -96,7 +97,7 @@ class HttpClient:
                 if r.status_code in (429, 500, 502, 503, 504) and attempt < retries:
                     await asyncio.sleep(1.5 * (attempt + 1))
                     continue
-                return r.status_code, r.text[:4096]
+                return r.status_code, r.text[:max_chars]
             except Exception:
                 last_status, body = -1, ""
                 if attempt < retries:
