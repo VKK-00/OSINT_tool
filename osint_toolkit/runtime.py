@@ -15,10 +15,15 @@ from .modules import (
     UsernameScanModule,
     WebMetadataModule,
 )
-from .modules.company_intel import GleifCompanyModule
+from .modules.company_intel import CompaniesHouseModule, GleifCompanyModule
 from .modules.deep_leaks import DeepLeaksModule
 from .modules.deep_sanctions import SanctionsIndexModule
-from .modules.domain_intel import InternetDbModule, UrlscanSearchModule, WaybackCdxModule
+from .modules.domain_intel import (
+    InternetDbModule,
+    PassiveDnsModule,
+    UrlscanSearchModule,
+    WaybackCdxModule,
+)
 from .modules.dorks import DorksModule
 from .modules.exif_photo import ExifPhotoModule
 from .modules.person_sources import (
@@ -102,6 +107,9 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(WaybackCdxModule(), network=True, tier="passive"),
     _d(UrlscanSearchModule(), network=True, tier="passive", key=True, key_env="URLSCAN_API_KEY"),
     _d(GleifCompanyModule(), network=True, tier="passive"),
+    _d(PassiveDnsModule(), network=True, tier="passive"),
+    _d(CompaniesHouseModule(), network=True, tier="passive",
+       key=True, key_env="COMPANIES_HOUSE_API_KEY"),
 )
 
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {

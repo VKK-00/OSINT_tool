@@ -365,6 +365,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         native_kinds=("company",),
         native_modules=(
         "gleif-company",
+        "companies-house",
         ),
         derived_target_kinds=(),
         note="Keyless public API; registry pivots live in `scan ru-ua registry`.",
@@ -391,6 +392,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "domain-baseline",
         "wayback-cdx",
         "urlscan-search",
+        "hackertarget-hostsearch",
         ),
         adapter_profiles=("domain-recon", "url-archive"),
         derived_target_kinds=("domain",),
@@ -407,6 +409,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "wayback-cdx",
         "internetdb-ip",
         "urlscan-search",
+        "hackertarget-hostsearch",
         ),
         adapter_profiles=("domain-recon", "bbot-passive-web", "bbot-passive-email", "broad-recon", "url-archive"),
         derived_target_kinds=("domain",),

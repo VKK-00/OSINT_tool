@@ -12,7 +12,7 @@ upstream-imported entries.
 WhatsMyName site dataset
 Source: https://github.com/WebBreacher/WhatsMyName
 File: wmn-data.json
-Snapshot commit: 7c44595
+Snapshot commit: d434994
 License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
 
 The copied dataset is used as a native username check template source.

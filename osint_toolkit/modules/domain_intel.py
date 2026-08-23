@@ -272,3 +272,103 @@ def _host_of(value: str) -> str:
     raw = raw.rpartition("@")[2] or raw
     host = raw.partition(":")[0].lower()
     return host[4:] if host.startswith("www.") and host.count(".") > 1 else host
+
+
+HACKERTARGET_HOSTSEARCH_URL = "https://api.hackertarget.com/hostsearch/?q={domain}"
+
+
+@dataclass(frozen=True)
+class PassiveDnsModule:
+    """Keyless passive hostname/IP lookup via the HackerTarget host search.
+
+    The free endpoint is rate limited per source IP; quota exhaustion is
+    reported as an ``unknown`` observation instead of a fake negative.
+    """
+
+    name: str = "hackertarget-hostsearch"
+    supported_targets: tuple[str, ...] = ("domain",)
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        host = _host_of(target.value)
+        url = HACKERTARGET_HOSTSEARCH_URL.format(domain=quote(host, safe=""))
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="passive-dns", target=target.value,
+                    status="planned", url=url, confidence="not_checked",
+                    evidence="Dry run only. Pass --live to query the keyless passive-hostname API.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        result = client.check(url)
+        text = (result.body_text or "").strip()
+        if result.status_code != 200:
+            return (
+                Finding(
+                    module=self.name, source="passive-dns", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence=result.error or f"HTTP {result.status_code} from HackerTarget.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        lowered = text.lower()
+        if not text or "error" in lowered[:80] or "count exceeded" in lowered[:120]:
+            return (
+                Finding(
+                    module=self.name, source="passive-dns", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence="Passive-DNS quota exhausted or request rejected; retry later.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        pairs = parse_hackertarget_hostsearch(text)
+        if not pairs:
+            return (
+                Finding(
+                    module=self.name, source="passive-dns", target=target.value,
+                    status="not_found", http_status=200,
+                    confidence="medium",
+                    evidence=f"No passive-DNS hostnames found for '{host}'.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        hosts = [hostname for hostname, _ip in pairs]
+        ips = sorted({ip for _hostname, ip in pairs})
+        return (
+            Finding(
+                module=self.name, source="passive-dns", target=target.value,
+                status="candidate", url=url, http_status=200,
+                confidence="low",
+                title=f"Passive DNS: {len(pairs)} hostnames on {len(ips)} IPs",
+                evidence="Keyless passive-hostname lookup (HackerTarget free tier).",
+                metadata={
+                    "queried_host": host,
+                    "host_count": str(len(pairs)),
+                    "subdomains": ", ".join(hosts[:20]),
+                    "ip_count": str(len(ips)),
+                    "ips": ", ".join(ips[:15]),
+                },
+            ),
+        )
+
+
+def parse_hackertarget_hostsearch(text: str) -> tuple[tuple[str, str], ...]:
+    """Parse 'host,ip' lines; keep only entries under the queried domain."""
+    pairs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if "," not in line:
+            continue
+        hostname, _, ip = line.partition(",")
+        hostname = hostname.strip().lower()
+        ip = ip.strip()
+        if not hostname or "." not in hostname or hostname in seen:
+            continue
+        seen.add(hostname)
+        pairs.append((hostname, ip))
+    return tuple(pairs)

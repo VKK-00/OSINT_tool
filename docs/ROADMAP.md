@@ -24,6 +24,7 @@
 ## v0.3 (поточний стан)
 - [x] Персо-OSINT збагачення з публічних джерел: GitHub/Mastodon/Bluesky профілі (username), Wikidata дізамбігуація осіб (person), Gravatar-профіль (email live)
 - [x] Доменна розвідка: Shodan InternetDB IP-exposure, Wayback CDX вік домену, urlScan history (за ключем оператора); UA/RF публічні реєстри в ru-ua source pack
+- [x] Passive-DNS hostnames (HackerTarget, keyless) + UK Companies House (free key) у company-напрямі; scripts/update_snapshots.py для Sherlock/WMN снапшотів
 - [x] SOCMINT-глибина: останні публічні пости Mastodon та Bluesky author feed у live username-сканах
 - [x] Новий target kind `company`: GLEIF open lookup (ім'я або LEI) + профіль `company-safe`
 - [x] EXIF GPS + Overpass: найближчі іменовані OSM-об'єкти для верифікації геолокації фото

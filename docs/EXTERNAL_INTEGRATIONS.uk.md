@@ -30,12 +30,10 @@
 
 ## Пріоритет 2 — безкоштовний ключ (operator надає сам)
 
-| # | Джерело | Куди | Що дає | Примітка |
-|---|---|---|---|---|
 | 8 | ✅ ЗРОБЛЕНО: urlScan.io search API → `modules/domain_intel.UrlscanSearchModule` | url/domain live | Історія сканів/IP сторінки | Free tier достатньо; env `URLSCAN_API_KEY`, без ключа `skipped` |
-| 9 | GLEIF API | новий напрямок company | Юрособи за назвою/LEI; без ключа базовий пошук | Почати з нього, компанійний напряму поки немає взагалі |
-| 10 | Companies House (UK) / OpenCorporates | company напрямок | Реєстраційні дані, директора | Key required; OpenCorporates free tier обмежений |
-| 11 | SecurityTrails / PassiveDNS free tier | domain-recon adapter-профіль | Пасивний DNS, історичні A-записи | Ключ оператора; не в default profiles |
+| 9 | ✅ ЗРОБЛЕНО: GLEIF API → `modules/company_intel.GleifCompanyModule` | company | Юрособи за назвою/LEI, без ключа | Початок компанійного напряму |
+| 10 | ✅ ЗРОБЛЕНО: UK Companies House → `modules/company_intel.CompaniesHouseModule` | company live | Реєстраційні дані, статус, адреса | Free key `COMPANIES_HOUSE_API_KEY`; OpenCorporates відхилено — їхній free API-доступ закритий |
+| 11 | ✅ ЗРОБЛЕНО (keyless): passive hostnames → `modules/domain_intel.PassiveDnsModule` (HackerTarget hostsearch) | domain live | Пасивні піддомени + IP без ключа | Free tier з денним лімітом; вичерпання = чесний `unknown` |
 
 ## Пріоритет 3 — великі upstream через adapters
 
@@ -45,7 +43,7 @@
 
 ## Ресурси-датасети
 
-- Періодичне оновлення bundled snapshots Sherlock/WMN/Maigret (зараз зафіксовані commit'и) + `tools doctor`-подібна перевірка свіжості.
+- ✅ Оновлення bundled snapshots автоматизоване: `python scripts/update_snapshots.py` тягне Sherlock + WhatsMyName з upstream, валідує лоадерами, оновлює THIRD_PARTY_NOTICES (поточні коміти: sherlock 206068d [без змін контенту], wmn d434994). Maigret потребує порту санитайзера projection у репо — окрема задача.
 - Розширення `ru_ua_sources`: публічні реєстри UA (`data.gov.ua`, `reyestr.court.gov.ua`) та RF-джерела з поточної розмітки top-100 — як curated source pack, не як скрапери.
 
 ## Що НЕ інтегрувати (свідомо)

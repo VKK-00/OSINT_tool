@@ -51,7 +51,7 @@ python -m osint_toolkit scan username <username> --live
 - RU/UA/кириллическая transliteration для username candidates;
 - curated common given-name aliases, initials, reversible name order и handle suffixes для person-derived username candidates;
 - operator-provided aliases через `--person-alias` и UTF-8 alias dictionaries через `--person-alias-file`;
-- 2017 активных публичных URL/check-шаблонов профилей: 46 curated правил, 479 валидных записей из Sherlock `data.json`, 718 WhatsMyName `wmn-data.json` GET/POST entries и 1423 sanitized Maigret site rules после дедупликации одинаковых URL;
+- 2023 активных публичных URL/check-шаблонов профилей: 46 curated правил, 479 валидных записей из Sherlock `data.json`, 715 WhatsMyName `wmn-data.json` GET/POST entries и 1423 sanitized Maigret site rules после дедупликации одинаковых URL;
 - platform-specific username rules и `skipped` findings для заведомо несовместимых платформ;
 - content markers и response-url rules для части live username checks: profile marker -> `candidate/high`, soft-404 marker или Sherlock `errorUrl` redirect -> `not_found/high`;
 - native import Sherlock `sherlock_project/resources/data.json` как package resource с MIT notice; 3 POST-checks используют `request_payload`, 27 `response_url` rules используют `errorUrl`; curated локальные правила имеют приоритет над upstream-дублями;
