@@ -109,6 +109,29 @@ Gap до полного 1:1:
 - Blackbird подключён adapter-first через фактический upstream checkout `BLACKBIRD_DIR`; JSON exports и stdout hits нормализуются, но upstream AI profiling, PDF/CSV/DUMP exports, proxy/permutation options и enhanced Instagram session metadata пока не вынесены в отдельные native UI-параметры;
 - нет сохранения истории запусков.
 
+### Deep indexes: санкции / утечки / dorks / EXIF (интегрированный osintkit)
+
+Команды:
+
+```powershell
+python -m osint_toolkit search person "yanukovych" --profile deep-full --plan-only
+python -m osintkit sanctions-update
+python -m osintkit leaks-import <path>
+```
+
+Покрытие:
+
+- **sanctions-index** — офлайн-поиск по watchlists через локальный sqlite-индекс OpenSanctions simplecsv (~1.2M сущностей: OFAC, EU, UA NSDC и др.); upstream-аналог — запросы к opensanctions/yente API, но здесь всё работает без сети после однократной сборки индекса; статус `hit` несёт schema/countries/topics/birth_date + ссылку на карточку;
+- **deep-leaks** — аналог локального grep-поиска по своим датасетам утечек с sqlite-индексом (exact token + raw-line substring); данные не покидают машину; upstream-аналоги — hibp-клиенты, но здесь источник данных операторский;
+- **dorks** — генератор поисковых пивотов Google/Yandex/DDG/Bing c site-фильтрами (vk.com, ok.ru, t.me, habr.com, dtf.ru, pikabu.ru, pastebin) и RU/UA транслитерационными вариантами; без сетевых запросов;
+- **exif** — EXIF-форензика фото по URL: GPS→координаты+карты (OSM/Google/Yandex), камера, дата зйомки, софт; отсутствие EXIF фиксируется как информация.
+
+Ограничения:
+
+- sanctions/leaks индексы нужно построить заранее (`python -m osintkit sanctions-update`, `leaks-import`);
+- dorks — это ссылки для ручного клика, а не скрапинг выдачи;
+- exif покрывает URL-таргеты; локальные файлы — через standalone `osintkit scan -m image <path>` или local image tools.
+
 ## Следующие native/adapters группы
 
 ### Email OSINT

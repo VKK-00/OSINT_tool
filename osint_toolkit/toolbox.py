@@ -77,6 +77,7 @@ TOOLBOX_INPUTS: tuple[ToolboxInput, ...] = (
     ToolboxInput("target_entity_kind", "Target entity kind", "url"),
     ToolboxInput("target_entity_value", "Target entity value", "https://example.com/profile"),
     ToolboxInput("out", "Файл отчета", "reports/case.md"),
+    ToolboxInput("leaks_path", "Папка/файл утечек", r"C:\data\leaks"),
 )
 
 INPUT_LABELS = {field.name: field.label for field in TOOLBOX_INPUTS}
@@ -723,6 +724,67 @@ def toolbox_sections() -> tuple[ToolboxSection, ...]:
                     "Показывает install/config hints для adapters.",
                     "python -m osint_toolkit adapter-setup --format markdown",
                     badges=("setup", "docs"),
+                ),
+            ),
+        ),
+        ToolboxSection(
+            slug="deep-indexes",
+            title="Deep indexes / санкции / утечки / dorks",
+            description=(
+                "Локальные индексы и пивоты из интегрированного пакета osintkit: "
+                "офлайн-поиск по санкционным спискам OpenSanctions (~1.2M), поиск "
+                "по своим датасетам утечек, готовые поисковые dorks (Yandex/Google) "
+                "и EXIF-форензика фото. Индексы строятся один раз локально."
+            ),
+            commands=(
+                ToolboxCommand(
+                    "Deep fan-out plan",
+                    "Единый план: native baseline + sanctions-index + deep-leaks + dorks + exif.",
+                    'python -m osint_toolkit search "{person}" --profile deep-full --plan-only --format markdown',
+                    required_inputs=("person",),
+                    badges=("search", "deep-full"),
+                ),
+                ToolboxCommand(
+                    "Build OpenSanctions index",
+                    "Скачивает simplecsv (~100 MB) и строит офлайн-индекс санкций.",
+                    "python -m osintkit sanctions-update",
+                    badges=("one-time", "index"),
+                    note="После сборки модуль sanctions-index работает без сети.",
+                ),
+                ToolboxCommand(
+                    "Import leak datasets",
+                    "Индексирует файл/папку с утечками в sqlite (email/phone/handle).",
+                    'python -m osintkit leaks-import "{leaks_path}"',
+                    required_inputs=("leaks_path",),
+                    badges=("one-time", "index"),
+                ),
+                ToolboxCommand(
+                    "Sanctions search",
+                    "Офлайн-поиск лица по watchlists через scan person.",
+                    'python -m osint_toolkit scan person "{person}" --live',
+                    required_inputs=("person",),
+                    badges=("scan", "sanctions"),
+                ),
+                ToolboxCommand(
+                    "Dork pivots for target",
+                    "Готовые ссылки-запросы Yandex/Google/DDG/Bing с site-фильтрами.",
+                    'python -m osint_toolkit scan username "{username}" --live',
+                    required_inputs=("username",),
+                    badges=("scan", "dorks"),
+                ),
+                ToolboxCommand(
+                    "EXIF photo forensics",
+                    "GPS, камера, дата зйомки из изображения по URL.",
+                    'python -m osint_toolkit scan url "{url}" --live',
+                    required_inputs=("url",),
+                    badges=("scan", "exif"),
+                ),
+                ToolboxCommand(
+                    "Standalone web UI + watch",
+                    "Поднимает веб-интерфейс osintkit с графом, дифом сканов и watch-мониторингом.",
+                    "python -m osintkit webapp",
+                    badges=("webui", "watch"),
+                    note="Открывается на http://127.0.0.1:8765; watch'ы переживают рестарт.",
                 ),
             ),
         ),
