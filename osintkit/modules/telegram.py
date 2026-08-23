@@ -49,6 +49,14 @@ class TelegramModule(Module):
     help = "Public Telegram channel info + history crawl via t.me/s preview"
     target_hint = "channel or username, e.g. some_channel"
 
+    def accepts(self, target: str) -> bool:
+        value = target.strip()
+        if "@" in value and "." in value.split("@")[-1]:
+            return False          # looks like an email
+        if value.lstrip("+").isdigit():
+            return False          # phone number
+        return True
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         target = target.lstrip("@").replace("https://t.me/", "")
         findings: list[Finding] = []

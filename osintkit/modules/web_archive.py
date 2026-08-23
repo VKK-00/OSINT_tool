@@ -17,6 +17,9 @@ class ArchiveModule(Module):
     help = "Wayback snapshot lookup + trigger a fresh capture"
     target_hint = "URL to check/archive"
 
+    def accepts(self, target: str) -> bool:
+        return target.lower().startswith(("http://", "https://"))
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         findings: list[Finding] = []
         url = urllib.parse.quote(target, safe=":/?&=%")

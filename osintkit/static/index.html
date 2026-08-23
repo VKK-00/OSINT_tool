@@ -122,8 +122,17 @@
     <button class="run" id="runBtn" type="submit">Сканувати</button>
   </form>
   <div class="status" id="status"></div>
-  <button class="mini" id="watchBtn" style="display:none;margin-bottom:18px"
-          onclick="startWatch()">👁 Слідкувати за цим таргетом (рескан кожні 10 хв)</button>
+  <div id="watchRow" style="display:none;margin-bottom:18px">
+    <button class="mini" id="watchBtn" onclick="startWatch()">👁 Слідкувати за таргетом — рескан кожні</button>
+    <select id="watchInterval" style="background:#21262d;border:none;color:var(--text);
+             border-radius:6px;padding:6px;font-size:12px">
+      <option value="5">5 хв</option>
+      <option value="10" selected>10 хв</option>
+      <option value="30">30 хв</option>
+      <option value="60">60 хв</option>
+      <option value="360">6 год</option>
+    </select>
+  </div>
   <div class="progress" id="prog"><i></i></div>
   <div id="graphWrap">
     <canvas id="graph"></canvas>
@@ -185,7 +194,7 @@ function runScan() {
   if (!mods.length) { setStatus('Увімкни хоча б один модуль', true); return; }
 
   document.getElementById('results').innerHTML = '';
-  document.getElementById('watchBtn').style.display = 'none';
+  document.getElementById('watchRow').style.display = 'none';
   setStatus('Запуск скану «' + target + '» …');
   prog(true);
   document.getElementById('runBtn').disabled = true;
@@ -212,7 +221,7 @@ function poll(jobId) {
       document.getElementById('runBtn').disabled = false;
       buildGraph(j.results);
       loadHistory();
-      document.getElementById('watchBtn').style.display = 'inline-block';
+      document.getElementById('watchRow').style.display = 'block';
     } else {
       setStatus('Сканування… модуль ' + Math.min(done+1,total) + '/' + total);
     }
@@ -227,6 +236,12 @@ function renderResults(results, target, staticReport) {
   for (const res of results) {
     const card = document.createElement('div'); card.className = 'card';
     const nf = res.findings ? res.findings.length : 0; total += nf;
+    if (res.skipped) {
+      card.innerHTML = '<h3 style="color:var(--dim)">' + esc(res.module) +
+        ' <span class="t">пропущено — таргет іншого типу</span></h3>';
+      box.appendChild(card);
+      continue;
+    }
     let head = '<h3>' + esc(res.module) +
       ' <span class="t">' + nf + ' знахідок · ' + res.elapsed_s + 's</span></h3>';
     if (!res.ok) head += '<div class="err">⚠ ' + esc(res.error) + '</div>';
@@ -394,9 +409,10 @@ function startWatch() {
   const target = currentTarget();
   if (!target) return;
   const mods = [...document.querySelectorAll('#modules input:checked')].map(i => i.value);
+  const interval = parseInt(document.getElementById('watchInterval').value, 10) || 10;
   fetch(API + '/api/watch', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ target, modules: mods, interval_min: 10 })
+    body: JSON.stringify({ target, modules: mods, interval_min: interval })
   }).then(() => { setStatus('Моніторинг запущено для «' + target + '»'); loadWatches(); })
     .catch(e => setStatus('Watch error: ' + e.message, true));
 }

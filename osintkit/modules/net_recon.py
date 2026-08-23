@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import socket
 
 from osintkit.core import Finding, HttpClient
@@ -21,11 +22,20 @@ def _is_ip(target: str) -> bool:
         return False
 
 
+_DOMAIN_RE = re.compile(r"^[a-z0-9.-]+\.[a-z]{2,}$", re.I)
+
+
 @register
 class NetReconModule(Module):
     name = "net"
     help = "Domain/IP recon: DoH records, crt.sh subs, RDAP whois"
     target_hint = "e.g. example.gov.ua or 8.8.8.8"
+
+    def accepts(self, target: str) -> bool:
+        value = target.strip()
+        if " " in value or "@" in value or value.startswith("http"):
+            return False
+        return _is_ip(value) or bool(_DOMAIN_RE.match(value))
 
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         return await (self._ip(target, http) if _is_ip(target) else self._domain(target, http))

@@ -14,8 +14,11 @@ console = Console()
 
 def print_results(results: list[ModuleResult], verbose: bool = False) -> None:
     for res in results:
+        if getattr(res, "skipped", False):
+            console.print(f"\n[dim]\u25a1 module: {res.module} — skipped (target not applicable)[/]")
+            continue
         style = "green" if res.ok else "red"
-        console.print(f"\n[bold {style}]■ module:[/] {res.module} "
+        console.print(f"\n[bold {style}]\u25a0 module:[/] {res.module} "
                       f"[dim]({res.elapsed_s:.1f}s)"
                       + (f" ERROR: {res.error}" if not res.ok else "") + "[/]")
         if not res.findings:

@@ -41,6 +41,11 @@ class GeoModule(Module):
             "or 'lat,lon' for map links + reverse geocode")
     target_hint = "'50.4501,30.5234' or '50.45,30.52;180;2.5'"
 
+    def accepts(self, target: str) -> bool:
+        import re
+        first = target.strip().split(";")[0].strip()
+        return bool(re.match(r"^-?\d{1,3}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$", first))
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         parts = [p.strip() for p in target.split(";")]
         lat_s, lon_s = parts[0].split(",")

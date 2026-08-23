@@ -32,6 +32,7 @@ class ModuleResult:
     module: str
     target: str
     ok: bool = True
+    skipped: bool = False
     error: str = ""
     findings: list[Finding] = dataclasses.field(default_factory=list)
     elapsed_s: float = 0.0
@@ -41,6 +42,7 @@ class ModuleResult:
             "module": self.module,
             "target": self.target,
             "ok": self.ok,
+            "skipped": self.skipped,
             "error": self.error,
             "elapsed_s": round(self.elapsed_s, 2),
             "findings": [f.as_dict() for f in self.findings],

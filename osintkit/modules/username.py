@@ -57,6 +57,12 @@ class UsernameModule(Module):
     help = "Find profiles by username/handle across platforms"
     target_hint = "e.g. ivanov1990"
 
+    def accepts(self, target: str) -> bool:
+        value = target.strip()
+        if "@" in value or value.lstrip("+").isdigit() or value.startswith("http"):
+            return False
+        return True
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         import asyncio
         import re

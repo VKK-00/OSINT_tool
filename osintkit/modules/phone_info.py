@@ -19,6 +19,13 @@ class PhoneModule(Module):
     help = "Parse phone number: country, region, carrier, timezone"
     target_hint = "E.164 or local format, e.g. +380501234567"
 
+    def accepts(self, target: str) -> bool:
+        try:
+            num = phonenumbers.parse(target.strip(), None)
+        except Exception:
+            return False
+        return phonenumbers.is_valid_number(num)
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         findings: list[Finding] = []
         num = phonenumbers.parse(target, None)

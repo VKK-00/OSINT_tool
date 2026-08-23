@@ -19,6 +19,12 @@ class EmailModule(Module):
     help = "Email checks: gravatar profile, public breach exposure"
     target_hint = "e.g. someone@gmail.com"
 
+    def accepts(self, target: str) -> bool:
+        if "@" not in target:
+            return False
+        domain = target.rsplit("@", 1)[-1]
+        return "." in domain and len(domain) > 3
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         findings: list[Finding] = []
         if "@" not in target:

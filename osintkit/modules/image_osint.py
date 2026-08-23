@@ -26,6 +26,16 @@ class ImageModule(Module):
     help = "Photo EXIF (GPS!, camera, date) + reverse search pivots"
     target_hint = "local path or image URL"
 
+    _IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp")
+
+    def accepts(self, target: str) -> bool:
+        import pathlib
+        low = target.lower().split("?")[0]
+        if low.startswith("http"):
+            return low.endswith(self._IMG_EXTS)
+        p = pathlib.Path(target)
+        return p.is_file() and low.endswith(self._IMG_EXTS)
+
     async def run(self, target: str, http: HttpClient) -> list[Finding]:
         data = None
         src = target

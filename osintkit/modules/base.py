@@ -10,6 +10,11 @@ class Module(abc.ABC):
     help: str = ""
     target_hint: str = ""   # what kind of target it expects
 
+    def accepts(self, target: str) -> bool:
+        """Whether this module applies to the target. Non-matching modules
+        are skipped silently instead of surfacing as errors."""
+        return True
+
     @abc.abstractmethod
     async def run(self, target: str, http: HttpClient) -> list[Finding]: ...
 
@@ -17,6 +22,10 @@ class Module(abc.ABC):
         import time
         res = ModuleResult(module=self.name, target=target)
         t0 = time.monotonic()
+        if not self.accepts(target):
+            res.skipped = True
+            res.elapsed_s = time.monotonic() - t0
+            return res
         try:
             res.findings = [f for f in await self.run(target, http) if f]
         except Exception as exc:  # noqa: BLE001 — one bad source must not kill the scan
