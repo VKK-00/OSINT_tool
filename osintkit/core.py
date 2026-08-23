@@ -110,9 +110,10 @@ class HttpClient:
 
 
 _LAT2CYR = {
-    "a": "а", "b": "б", "c": "с", "e": "е", "h": "г", "i": "і", "j": "й",
-    "k": "к", "m": "м", "o": "о", "p": "р", "s": "с", "t": "т", "x": "х",
-    "y": "у",
+    "a": "а", "b": "б", "c": "с", "d": "д", "e": "е", "f": "ф", "g": "г",
+    "h": "г", "i": "і", "j": "й", "k": "к", "l": "л", "m": "м", "n": "н",
+    "o": "о", "p": "р", "r": "р", "s": "с", "t": "т", "u": "у", "v": "в",
+    "x": "х", "y": "у", "z": "з",
 }
 _CYR2LAT = {
     "а": "a", "б": "b", "в": "v", "г": "h", "д": "d", "е": "e", "ё": "e",
@@ -134,7 +135,7 @@ def _apply(word: str, table: dict[str, str]) -> str:
         if ch in table:
             out.append(table[ch])
         else:
-            out.append(word[i] if not word[i].isalpha() else ch)
+            out.append(word[i])
         i += 1
     return "".join(out)
 
