@@ -38,6 +38,6 @@ def get_all() -> list[Module]:
     # import side-effects register everything
     from osintkit.modules import (  # noqa: F401
         username, email_check, phone_info, net_recon,
-        telegram, web_archive, geo, leaks, sanctions, dorks,
+        telegram, web_archive, geo, leaks, sanctions, dorks, image_osint,
     )
     return list(REGISTRY.values())
