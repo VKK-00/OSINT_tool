@@ -1,0 +1,9 @@
+name="image-full",
+        title="Image local analysis fan-out",
+        description="Local metadata, OCR and QR/barcode tools for image-derived OSINT seeds.",
+        target_kinds=("image",),
+        local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
+        note="Face recognition and identity-by-face matching are not part of this profile.",
+    ),
+    SearchProfile(
+    

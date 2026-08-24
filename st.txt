@@ -1,0 +1,3 @@
+exiftool -> completed
+tesseract-ocr -> completed
+zbarimg -> completed
