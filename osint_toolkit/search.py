@@ -533,9 +533,6 @@ SearchProfile(
         title="Image local analysis fan-out",
         description="Local metadata, OCR and QR/barcode tools for image-derived OSINT seeds.",
         target_kinds=("image",),
-        native_modules=(
-            "exif",
-        ),
         local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
         note="Face recognition and identity-by-face matching are not part of this profile.",
     ),
@@ -646,11 +643,12 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
     description = _optional_string(item, "description", default="", index=index)
     target_kinds = _string_tuple(item, "target_kinds", index=index, required=True)
     native_kinds = _string_tuple(item, "native_kinds", index=index)
-    if "native_modules" in item:
-        native_modules: tuple[str, ...] | None = _string_tuple(
-            item, "native_modules", index=index)
+    raw_modules = item.get("native_modules")
+    if raw_modules is None:
+        # absent key AND explicit null both mean "auto"
+        native_modules = None
     else:
-        native_modules = None  # auto: every compatible module
+        native_modules = _string_tuple(item, "native_modules", index=index)
     adapter_profiles = _string_tuple(item, "adapter_profiles", index=index)
     adapter_repositories = _string_tuple(item, "adapter_repositories", index=index)
     local_tools = _string_tuple(item, "local_tools", index=index)

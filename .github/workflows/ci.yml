@@ -13,12 +13,22 @@ jobs:
       - run: pip install ruff
       - run: python -m ruff check .
   tests:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.12", "3.13"]
+        include:
+          # Windows smoke: PowerShell-first docs, Windows local tools and
+          # executable resolution live in this codebase
+          - os: windows-latest
+            python-version: "3.12"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
   package:
@@ -30,12 +40,19 @@ jobs:
           python-version: "3.12"
       - run: pip install build
       - run: python -m build
-      # clean-install the built wheel exactly as a user would, then smoke-test
-      # every declared entry point against the installed metadata only.
-      - name: Clean-install wheel and smoke entry points
+      # True clean-wheel test: install ONLY the built wheel (plus its web extra,
+      # resolved from the wheel metadata) inside an empty venv, from a directory
+      # that does not contain the project source. This catches missing package
+      # data and broken entry points that a source-dir install would mask.
+      - name: Clean-install wheel only and smoke entry points
+        shell: bash
         run: |
           python -m venv clean-venv
-          clean-venv/bin/pip install --no-cache-dir dist/*.whl ".[web]"
-          clean-venv/bin/osint-toolkit stats
-          clean-venv/bin/python -c "from osintkit.modules.base import get_all; assert len(get_all()) >= 10"
-          clean-venv/bin/python -c "import osintkit.webapp; print('webapp imports ok')"
+          WHEEL=$(ls dist/*.whl)
+          echo "installing ${WHEEL}[web]"
+          clean-venv/bin/pip install --no-cache-dir "${WHEEL}[web]"
+          cd "$RUNNER_TEMP"
+          CLEAN_BIN="$GITHUB_WORKSPACE/clean-venv/bin"
+          "$CLEAN_BIN/osint-toolkit" stats
+          "$CLEAN_BIN/python" -c "from osintkit.modules.base import get_all; assert len(get_all()) >= 10"
+          "$CLEAN_BIN/python" -c "import osintkit.webapp; print('webapp imports ok')"

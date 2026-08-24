@@ -22,7 +22,13 @@ NON_EVIDENCE_STATUSES = frozenset({
     "invalid",        # input rejected by normalizer
     "unknown",        # ambiguous answer (403/429/5xx etc.)
 })
-EVIDENCE_STATUSES = frozenset({"candidate", "hit", "valid", "reference"})
+EVIDENCE_STATUSES = frozenset({
+    "candidate",   # confirmed by marker/status rule
+    "hit",         # local index match (sanctions/leaks)
+    "valid",       # syntactically valid input
+    "reference",   # curated source-pack entry
+    "observed",    # direct factual observation of public data (e.g. technology on page)
+})
 
 
 def is_evidence_finding(finding: Finding) -> bool:

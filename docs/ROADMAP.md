@@ -39,7 +39,8 @@
 - [x] Залежності оголошені повністю (base/web/dev extras), CI чисто встановлює wheel і smoke-тестить усі entry points
 - [x] Case store: guard від новішої схеми, lookup-індекси; leaks: raw lines вимкнені за замовчуванням, purge CLI
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
-- [ ] Module registry: профілі обирають конкретні module IDs (з network_access/risk_tier/requires_key), а не тільки target kinds
+- [x] Module registry: профілі обирають конкретні module IDs (network_access/risk_tier/requires_key), tri-state native_modules (None/()/allowlist), snapshot-тести складу
+- [ ] Confidence model split: source/identity/assertion confidence + severity + corroboration_count замість однієї low/medium/high шкали
 - [x] Watch osintkit пише рескани в спільний case store; leaks/sanctions мігрували в out/cases.sqlite (авто-міграція з index.db)
 
 ## Ідеї

@@ -111,4 +111,5 @@ def test_breach_modules_only_in_deep_profile():
         assert "psbdmp-dumps" not in mods
     deep = find_search_profile("deep-full").native_modules
     # deep-full keeps everything (empty selection == all modules)
-    assert deep == ()
+    # deep-full pins the explicit full allowlist, which includes the breach pair
+    assert 'hibp-breaches' in deep and 'psbdmp-dumps' in deep
