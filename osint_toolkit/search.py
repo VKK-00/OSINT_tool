@@ -36,7 +36,8 @@ class SearchProfile:
     description: str
     target_kinds: tuple[str, ...]
     native_kinds: tuple[str, ...] = ()
-    native_modules: tuple[str, ...] = ()
+    # None = all compatible modules; () = none; non-empty = allowlist
+    native_modules: tuple[str, ...] | None = None
     adapter_profiles: tuple[str, ...] = ()
     adapter_repositories: tuple[str, ...] = ()
     local_tools: tuple[str, ...] = ()
@@ -52,7 +53,9 @@ class SearchProfile:
             "description": self.description,
             "target_kinds": list(self.target_kinds),
             "native_kinds": list(self.native_kinds),
-            "native_modules": list(self.native_modules),
+            "native_modules": (
+                list(self.native_modules) if self.native_modules is not None else None
+            ),
             "adapter_profiles": list(self.adapter_profiles),
             "adapter_repositories": list(self.adapter_repositories),
             "local_tools": list(self.local_tools),
@@ -237,6 +240,42 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         derived_target_kinds=("domain", "username"),
         note="Restricted adapters are excluded.",
     ),
+SearchProfile(
+        name="standard",
+        title="Standard fan-out (public, non-restricted)",
+        description="Alias of the legacy 'safe' profile: active public-source checks plus non-restricted adapters.",
+        target_kinds=TARGET_KINDS,
+        native_kinds=("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social", "ru-ua", "company"),
+        native_modules=(
+        "username-public-profiles",
+        "person-name-expansion",
+        "email-baseline",
+        "phone-baseline",
+        "domain-baseline",
+        "web-metadata",
+        "telegram-baseline",
+        "instagram-public-profile",
+        "social-public-profile",
+        "ru-ua-source-pack",
+        "dorks",
+        "exif",
+        "github-user",
+        "github-commit-emails",
+        "mastodon-lookup",
+        "bluesky-profile",
+        "wikidata-person",
+        "internetdb-ip",
+        "wayback-cdx",
+        "urlscan-search",
+        "gleif-company",
+        "predictasearch",
+        "botsarchive-bot",
+        ),
+        adapter_profiles=("username-full", "email-safe", "phone-safe", "domain-recon", "url-archive"),
+        local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
+        derived_target_kinds=("domain", "username"),
+        note="Renamed from 'safe': includes ACTIVE network checks, so it is not purely passive.",
+    ),
     SearchProfile(
         name="all-safe",
         title="All safe configured tools",
@@ -295,7 +334,43 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         target_kinds=TARGET_KINDS,
         native_kinds=("person", "username", "email", "phone", "domain", "url",
                       "telegram", "instagram", "social", "ru-ua", "company"),
-        native_modules=(),
+        native_modules=(
+"bluesky-profile",
+        "botsarchive-bot",
+        "companies-house",
+        "courtlistener-search",
+        "deep-leaks",
+        "domain-baseline",
+        "domainsdb-search",
+        "dorks",
+        "email-baseline",
+        "email-quality",
+        "exif",
+        "github-commit-emails",
+        "github-user",
+        "gleif-company",
+        "hackertarget-hostsearch",
+        "hibp-breaches",
+        "instagram-public-profile",
+        "internetdb-ip",
+        "ip-api-geo",
+        "mastodon-lookup",
+        "otx-passive-dns",
+        "otx-reputation",
+        "person-name-expansion",
+        "phone-baseline",
+        "predictasearch",
+        "psbdmp-dumps",
+        "ru-ua-source-pack",
+        "sanctions-index",
+        "social-public-profile",
+        "telegram-baseline",
+        "urlscan-search",
+        "username-public-profiles",
+        "wayback-cdx",
+        "web-metadata",
+        "wikidata-person",
+        ),
         adapter_profiles=("url-archive",),
         note=("sanctions-index and deep-leaks need local indexes built once: "
               "python -m osintkit sanctions-update | leaks-import <path>."),
@@ -368,6 +443,25 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         ),
         adapter_profiles=("username-full", "username-ru-ua"),
     ),
+    SearchProfile(
+        name="passive-only",
+        title="Passive-only sources",
+        description=(
+            "Strictly offline/passive modules: no live HTTP checks. Index-backed"
+            " sources appear with manual readiness until their local indexes exist."
+        ),
+        target_kinds=TARGET_KINDS,
+        native_modules=(
+        "person-name-expansion",
+        "phone-baseline",
+        "ru-ua-source-pack",
+        "sanctions-index",
+        "deep-leaks",
+        "dorks",
+        ),
+        note="Zero network access by construction; pairs well with keyed sources left unset.",
+    ),
+
     SearchProfile(
         name="company-safe",
         title="Company public lookup",
@@ -552,7 +646,11 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
     description = _optional_string(item, "description", default="", index=index)
     target_kinds = _string_tuple(item, "target_kinds", index=index, required=True)
     native_kinds = _string_tuple(item, "native_kinds", index=index)
-    native_modules = _string_tuple(item, "native_modules", index=index)
+    if "native_modules" in item:
+        native_modules: tuple[str, ...] | None = _string_tuple(
+            item, "native_modules", index=index)
+    else:
+        native_modules = None  # auto: every compatible module
     adapter_profiles = _string_tuple(item, "adapter_profiles", index=index)
     adapter_repositories = _string_tuple(item, "adapter_repositories", index=index)
     local_tools = _string_tuple(item, "local_tools", index=index)
@@ -565,7 +663,8 @@ def _load_search_profile_item(item: dict[str, object], *, index: int) -> SearchP
 
     _validate_target_kinds(target_kinds, field="target_kinds", index=index)
     _validate_native_kinds(native_kinds, index=index)
-    _validate_native_modules(native_modules, index=index)
+    if native_modules is not None:
+        _validate_native_modules(native_modules, index=index)
     _validate_adapter_profiles(adapter_profiles, index=index)
     _validate_adapter_repositories(adapter_repositories, field="adapter_repositories", index=index)
     _validate_local_tools(local_tools, index=index)
@@ -865,7 +964,10 @@ def _module_steps(target: ScanTarget, profile: SearchProfile) -> tuple[PlannedSt
 
     from .runtime import MODULE_DESCRIPTOR_MAP, module_ids_for_kind
 
-    selected = profile.native_modules or module_ids_for_kind(target.kind)
+    if profile.native_modules is None:
+        selected = module_ids_for_kind(target.kind)
+    else:
+        selected = profile.native_modules
     steps: list[PlannedStep] = []
     for module_id in selected:
         descriptor = MODULE_DESCRIPTOR_MAP.get(module_id)

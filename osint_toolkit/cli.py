@@ -538,7 +538,7 @@ def handle_watch(args: argparse.Namespace) -> int:
         result = runner.run_cycle(
             args.case_id,
             targets,
-            allowed_native_modules=profile.native_modules or None,
+            allowed_native_modules=profile.native_modules,
             native_kinds=profile.native_kinds or None,
             title=f"Watch: {args.case_id} cycle {cycle}",
         )
@@ -851,7 +851,7 @@ def handle_search(args: argparse.Namespace) -> int:
         adapter_repositories=executable_adapters,
         native_kinds=native_kinds_for_plan(plan),
         http_workers=args.http_workers,
-        allowed_native_modules=plan.profile.native_modules or None,
+        allowed_native_modules=plan.profile.native_modules,
     )
     content = _render_search_execution(
         plan,
