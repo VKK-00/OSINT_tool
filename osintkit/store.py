@@ -12,7 +12,19 @@ import re
 import sqlite3
 
 DB_DIR = pathlib.Path("out")
-DB_PATH = DB_DIR / "index.db"
+# Single shared SQLite file: the case store (osint_toolkit) and the deep
+# indexes (leaks/sanctions) live side by side as separate tables.
+LEGACY_DB_PATH = DB_DIR / "index.db"
+
+
+def db_path() -> pathlib.Path:
+    """Active store path; OSINTKIT_DB_PATH overrides the shared default."""
+    override = os.environ.get("OSINTKIT_DB_PATH")
+    return pathlib.Path(override) if override else DB_DIR / "cases.sqlite"
+
+
+# back-compat handle for messages; resolve via db_path() in code paths
+DB_PATH = db_path()
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PHONE_RE = re.compile(r"\+?\d[\d\s\-()]{8,}\d")
@@ -22,13 +34,86 @@ SANCTIONS_CSV_URL = "https://data.opensanctions.org/datasets/latest/default/targ
 
 
 def _connect() -> sqlite3.Connection:
-    DB_DIR.mkdir(exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    path = db_path()
+    path.parent.mkdir(exist_ok=True)
+    conn = sqlite3.connect(path)
+    _migrate_legacy_db(conn)
     conn.execute("""CREATE TABLE IF NOT EXISTS leaks(
         value TEXT NOT NULL,
         kind  TEXT NOT NULL,
         line  TEXT,
         source TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_leaks_value ON leaks(value)")
+    _ensure_fts(conn)
+    conn.execute("""CREATE TABLE IF NOT EXISTS sanctions(
+        name TEXT NOT NULL,
+        schema TEXT, countries TEXT, topics TEXT, birth_date TEXT,
+        notes TEXT, sources TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sanctions_name ON sanctions(name)")
+    return conn
+
+
+def _migrate_legacy_db(conn: sqlite3.Connection) -> None:
+    """One-time copy of leaks/sanctions from the legacy out/index.db.
+
+    Runs only when the shared DB has no leaks table yet and a legacy index.db
+    exists next to it. The legacy file is left untouched as a backup.
+    """
+    if os.environ.get("OSINTKIT_DB_PATH"):
+        return  # explicit override: caller owns storage layout
+    if not LEGACY_DB_PATH.exists() or db_path().resolve() == LEGACY_DB_PATH.resolve():
+        return
+    try:
+        has_leaks = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='leaks'"
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return
+    if has_leaks:
+        return
+    try:
+        conn.execute("ATTACH DATABASE ? AS legacy", (str(LEGACY_DB_PATH),))
+        # qualify with main. - an unqualified name would also match the
+        # attached legacy schema and silently skip table creation
+        main_has_leaks = conn.execute(
+            "SELECT name FROM main.sqlite_master WHERE type='table' AND name='leaks'"
+        ).fetchone()
+        if not main_has_leaks:
+            legacy_leaks = conn.execute(
+                "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name='leaks'"
+            ).fetchall()
+            if legacy_leaks:
+                conn.execute(
+                    "CREATE TABLE main.leaks("
+                    "value TEXT NOT NULL, kind TEXT NOT NULL, line TEXT, source TEXT)"
+                )
+                conn.execute("INSERT INTO main.leaks SELECT value, kind, line, source FROM legacy.leaks")
+        main_has_sanctions = conn.execute(
+            "SELECT name FROM main.sqlite_master WHERE type='table' AND name='sanctions'"
+        ).fetchone()
+        if not main_has_sanctions:
+            legacy_sanctions = conn.execute(
+                "SELECT name FROM legacy.sqlite_master WHERE type='table' AND name='sanctions'"
+            ).fetchall()
+            if legacy_sanctions:
+                conn.execute(
+                    "CREATE TABLE main.sanctions("
+                    "name TEXT NOT NULL, schema TEXT, countries TEXT, topics TEXT,"
+                    " birth_date TEXT, notes TEXT, sources TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO main.sanctions SELECT name, schema, countries, topics,"
+                    " birth_date, notes, sources FROM legacy.sanctions"
+                )
+        conn.commit()
+        conn.execute("DETACH DATABASE legacy")
+    except sqlite3.Error:
+        # migration is best-effort; the operator can re-run sanctions-update /
+        # leaks-import against the shared DB at any time
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
     conn.execute("CREATE INDEX IF NOT EXISTS idx_leaks_value ON leaks(value)")
     _ensure_fts(conn)
     conn.execute("""CREATE TABLE IF NOT EXISTS sanctions(

@@ -33,7 +33,76 @@ TARGETS = [
         "file": RESOURCES / "whatsmyname_wmn_data.json",
         "notice_line": "Snapshot commit: 7c44595",
     },
+    {
+        "name": "Maigret",
+        "raw_url": "https://raw.githubusercontent.com/soxoj/maigret/main/maigret/resources/data.json",
+        "api_url": "https://api.github.com/repos/soxoj/maigret/commits?path=maigret/resources/data.json&per_page=1",
+        "file": RESOURCES / "maigret_sites.json",
+        "notice_line": "Snapshot commit: 2484509",
+        # Maigret ships a raw runtime database; the packaged resource is a
+        # sanitized projection produced by sanitize_maigret() below.
+        "sanitize": True,
+    },
 ]
+
+# Headers that must never be copied into the packaged projection: anything
+# credential-like would leak session material into the repository.
+UNSAFE_HEADER_MARKERS = ("auth", "cookie", "token", "session", "csrf", "api")
+
+
+def sanitize_maigret(raw: bytes) -> bytes:
+    """Ported sanitizer: upstream runtime DB -> safe check-template projection.
+
+    Keeps only fields the native loader consumes (url templates, markers,
+    regex rules, region tags, plain headers) and drops activation-dependent
+    and credential-like data.
+    """
+    payload = json.loads(raw)
+    sites = payload.get("sites") if isinstance(payload, dict) else None
+    if not isinstance(sites, dict):
+        raise SystemExit("Maigret: upstream JSON has no 'sites' object")
+    projection = []
+    for name, entry in sites.items():
+        if not isinstance(entry, dict):
+            continue
+        # upstream templates already carry the named {username} field that
+        # _template_uses_only_username requires
+        url = entry.get("url")
+        if not isinstance(url, str) or "{username}" not in url:
+            continue
+        projected: dict[str, object] = {"name": name, "url": url}
+        profile_url = entry.get("urlProbe") or entry.get("urlProfile")
+        if isinstance(profile_url, str) and "{username}" in profile_url:
+            projected["profile_url"] = profile_url
+        if isinstance(entry.get("regexCheck"), str) and entry["regexCheck"]:
+            projected["regexCheck"] = entry["regexCheck"]
+        tags = entry.get("tags")
+        if isinstance(tags, list) and tags:
+            projected["tags"] = [tag for tag in tags if isinstance(tag, str)]
+        error_type = entry.get("errorType")
+        if entry.get("checkType") == "status_code" or error_type == "status_code":
+            projected["checkType"] = "status_code"
+        presence = entry.get("presenseStrs") or entry.get("presenceStrs")
+        if isinstance(presence, list) and presence:
+            projected["presenceStrs"] = [s for s in presence if isinstance(s, str)]
+        absence = entry.get("absenceStrs")
+        if not isinstance(absence, list) and isinstance(entry.get("errorMsg"), str):
+            absence = [entry["errorMsg"]]
+        if isinstance(absence, list) and absence:
+            projected["absenceStrs"] = [s for s in absence if isinstance(s, str)]
+        headers = entry.get("headers")
+        if isinstance(headers, dict):
+            safe_headers = {
+                key: value
+                for key, value in headers.items()
+                if isinstance(key, str)
+                and isinstance(value, str)
+                and not any(marker in key.lower() for marker in UNSAFE_HEADER_MARKERS)
+            }
+            if safe_headers:
+                projected["headers"] = safe_headers
+        projection.append(projected)
+    return json.dumps({"sites": projection}, ensure_ascii=False, indent=1).encode("utf-8")
 
 UA = {"User-Agent": "osint-toolkit-snapshot-updater"}
 
@@ -84,10 +153,17 @@ def main() -> None:
 
     for target in TARGETS:
         raw = fetch(target["raw_url"])
-        validate(target["name"], raw)
+        if target.get("sanitize"):
+            raw = sanitize_maigret(raw)
+        else:
+            validate(target["name"], raw)
         sha = latest_commit_sha(target["api_url"])
-        old = target["file"].read_bytes()
-        if json.loads(old) == json.loads(raw):
+        old = target["file"].read_bytes() if target["file"].exists() else b""
+        try:
+            unchanged = json.loads(old) == json.loads(raw)
+        except json.JSONDecodeError:
+            unchanged = False
+        if unchanged:
             print(f"{target['name']}: already up to date ({sha})")
             continue
         target["file"].write_bytes(raw)

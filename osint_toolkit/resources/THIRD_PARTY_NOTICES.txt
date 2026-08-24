@@ -22,7 +22,7 @@ attribution. Site-specific rate-limit tuning remains parity work.
 Maigret sanitized site dataset
 Source: https://github.com/soxoj/maigret
 Source file: maigret/resources/data.json
-Snapshot commit: 2484509
+Snapshot commit: 86593e7
 License: MIT
 
 The packaged maigret_sites.json file is a sanitized projection of the upstream

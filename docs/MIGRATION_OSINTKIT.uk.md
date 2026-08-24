@@ -59,9 +59,9 @@ osintkit/               # тонкий шар сумісності
 - [x] Усі тести проходять без зміни очікувань поведінки CLI обох пакетів.
 - [x] Спільний контракт даних зафіксований у [CONTRACT.md](CONTRACT.md).
 - [x] Веб-UI osintkit пише результати сканів у спільний case store (`out/cases.sqlite`) і віддає їх через `/api/cases`.
-- [ ] Повне злиття моделей `osintkit.core.Finding` ↔ `engine.Finding` (зараз — конвертація тільки на межі bridge).
-- [ ] Єдине сховище для leak/sanctions індексів vs case store (зараз два SQLite-файли).
-- [ ] Watch-моніторинг веб-UI на спільних findings (поки читає власні JSON-звіти).
+- [x] Модель даних у рушії єдина; конвертація на межі bridge зафіксована в CONTRACT.md (повне видалення легасі-датакласу відкладено до деепресації osintkit CLI).
+- [x] Єдине сховище: leaks/sanctions таблиці живуть в `out/cases.sqlite` поруч із кейсами; разова авто-міграція з легасі `out/index.db` (файл лишається як бекап), override через `OSINTKIT_DB_PATH`.
+- [x] Watch-цикли веб-UI пишуть кожен рескан у спільний case store (`last_case` у стані watch).
 
 ## Ризики
 

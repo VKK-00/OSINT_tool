@@ -34,7 +34,7 @@
 - [x] Case store: guard від новішої схеми, lookup-індекси; leaks: raw lines вимкнені за замовчуванням, purge CLI
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
 - [ ] Module registry: профілі обирають конкретні module IDs (з network_access/risk_tier/requires_key), а не тільки target kinds
-- [ ] Watch osintkit на спільних findings; єдине сховище index.db/cases.sqlite
+- [x] Watch osintkit пише рескани в спільний case store; leaks/sanctions мігрували в out/cases.sqlite (авто-міграція з index.db)
 
 ## Ідеї
 - Зовнішні публічні джерела (InternetDB, Wayback CDX, Mastodon/Bluesky lookup, Overpass, GLEIF тощо) — пріоритезований план у [EXTERNAL_INTEGRATIONS.uk.md](EXTERNAL_INTEGRATIONS.uk.md)

@@ -167,16 +167,15 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(anilist.profile_url_template, "https://anilist.co/user/{username}")
 
     def test_username_site_dataset_imports_maigret_resource(self):
-        instagram_api = next(site for site in USERNAME_SITES if site.name == "Instagram (Maigret)")
+        wikipedia = next(site for site in USERNAME_SITES if site.name == "Wikipedia (Maigret)")
         aback = next(site for site in USERNAME_SITES if site.name == "Aback")
 
         self.assertGreaterEqual(MAIGRET_IMPORTED_SITE_COUNT, 1400)
         self.assertGreaterEqual(len(USERNAME_SITES), 1900)
-        self.assertEqual(instagram_api.url_template, "https://www.instagram.com/api/v1/users/web_profile_info/?username={username}")
-        self.assertEqual(instagram_api.profile_url_template, "https://www.instagram.com/{username}/")
-        self.assertEqual(instagram_api.profile_markers, ('"biography"',))
-        self.assertEqual(instagram_api.source_projects, ("maigret",))
-        self.assertIn(("x-ig-app-id", "936619743392459"), instagram_api.request_headers)
+        # refreshed upstream snapshot: maigret entries keep url + region +
+        # source attribution; the old Instagram-API probe entry no longer exists
+        self.assertEqual(wikipedia.url_template, "https://en.wikipedia.org/wiki/User:{username}")
+        self.assertEqual(wikipedia.source_projects, ("maigret",))
         self.assertEqual(aback.region, "ua")
 
     def test_username_scan_region_ua_includes_maigret_ua_sources(self):
@@ -188,14 +187,14 @@ class EngineTests(unittest.TestCase):
         self.assertIn("GitHub", sources)
 
     def test_username_scan_exposes_probe_profile_url_metadata(self):
-        site = next(site for site in USERNAME_SITES if site.name == "Instagram (Maigret)")
+        site = next(site for site in USERNAME_SITES if site.name == "Wikipedia (Maigret)")
         findings = Engine([UsernameScanModule(sites=(site,))]).scan(
             ScanTarget(kind="username", value="exampleuser"),
             RunConfig(),
         )
 
-        self.assertEqual(findings[0].url, "https://www.instagram.com/api/v1/users/web_profile_info/?username=exampleuser")
-        self.assertEqual(findings[0].metadata["profile_url"], "https://www.instagram.com/exampleuser/")
+        self.assertEqual(findings[0].url, "https://en.wikipedia.org/wiki/User:exampleuser")
+        self.assertEqual(findings[0].metadata["profile_url"], "https://en.wikipedia.org/w/api.php?action=query&format=json&list=users&ususers=exampleuser&usprop=cancreate&formatversion=2")
 
     def test_username_live_classifier_uses_not_found_marker(self):
         site = UsernameSite(

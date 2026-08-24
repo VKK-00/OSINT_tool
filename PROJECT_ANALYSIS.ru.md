@@ -25,7 +25,7 @@ CLI работает в пяти режимах:
 Первый native-слой уже выполняет:
 
 - person-name expansion: нормализация имени, RU/UA transliteration и username-кандидаты;
-- username public profile checks по 2023 активным URL/check-шаблонам: 46 curated правил, импорт Sherlock `data.json` GET/POST entries, импорт WhatsMyName `wmn-data.json` GET/POST entries и sanitized Maigret site rules, совместимые по классу задачи с Sherlock/Maigret/WhatsMyName/Nexfil;
+- username public profile checks по 2445 активным URL/check-шаблонам: 46 curated правил, импорт Sherlock `data.json` GET/POST entries, импорт WhatsMyName `wmn-data.json` GET/POST entries и sanitized Maigret site rules, совместимые по классу задачи с Sherlock/Maigret/WhatsMyName/Nexfil;
 - platform-specific username rules: несовместимые site checks возвращаются как `skipped`, без построения заведомо неверного URL;
 - content marker rules для live username checks: profile markers повышают confidence, soft-404 markers дают `not_found`;
 - email baseline checks: синтаксис, local-part profile hints, live domain resolution, MX/NS/TXT lookup, hosted provider attribution, certificate transparency domain correlation, SPF, DMARC, MTA-STS, TLS-RPT, BIMI и TXT service signal classification;

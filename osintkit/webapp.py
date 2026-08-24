@@ -343,6 +343,10 @@ async def _watch_loop(wid: str) -> None:
                  last_run=datetime.datetime.now(
                      datetime.timezone.utc).strftime("%H:%M:%S UTC"),
                  error=w.get("error", ""))
+        # every watch cycle lands in the shared case store, same as manual scans
+        case_id = save_case_from_results(w["target"], collected)
+        if case_id:
+            w["last_case"] = case_id
         for _ in range(max(1, int(w["interval_min"] * 12))):
             if wid not in WATCHES:
                 return
