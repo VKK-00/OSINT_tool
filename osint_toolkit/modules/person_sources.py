@@ -574,3 +574,139 @@ def _claim_year(claims: dict, property_id: str) -> str | None:
         if isinstance(time_value, dict) and time_value.get("time"):
             return str(time_value["time"])[:5].lstrip("+")
     return None
+
+@dataclass(frozen=True)
+class GithubCommitEmailsModule:
+    """Author emails from recent public commits of a GitHub user.
+
+    Commit authorship emails are self-published by the committer inside
+    their own commits (git config), fetched through the keyless GitHub REST
+    API. Bounded to a handful of recently-pushed repos to respect rate limits.
+    """
+
+    name: str = "github-commit-emails"
+    supported_targets: tuple[str, ...] = ("username",)
+
+    MAX_REPOS = 3
+    MAX_COMMITS_PER_REPO = 30
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        username = target.value.strip().lstrip("@")
+        if not username:
+            return (
+                Finding(
+                    module=self.name, source="normalizer", target=target.value,
+                    status="invalid", confidence="high",
+                    evidence="Username is empty after normalization.",
+                ),
+            )
+        repos_url = (
+            "https://api.github.com/users/" + quote(username) +
+            "/repos?sort=pushed&direction=desc&per_page=" + str(self.MAX_REPOS)
+        )
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="commit-emails", target=target.value,
+                    status="planned", url=repos_url, confidence="not_checked",
+                    evidence=(
+                        "Dry run only. Pass --live to scan recent public commits "
+                        "for self-published author emails."
+                    ),
+                    metadata={"github_username": username},
+                ),
+            )
+
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        headers = {"Accept": "application/vnd.github+json"}
+
+        account_result = client.check(
+            f"https://api.github.com/users/{quote(username)}", headers=headers)
+        if account_result.status_code == 404:
+            return (
+                Finding(
+                    module=self.name, source="commit-emails", target=target.value,
+                    status="not_found", confidence="high",
+                    evidence=f"No public GitHub account '{username}'.",
+                    metadata={"github_username": username},
+                ),
+            )
+        account_payload = _json_object(account_result) if account_result.status_code == 200 else None
+        if not isinstance(account_payload, dict):
+            return (
+                Finding(
+                    module=self.name, source="commit-emails", target=target.value,
+                    status="unknown", confidence="low",
+                    evidence=account_result.error or f"HTTP {account_result.status_code} from GitHub.",
+                    metadata={"github_username": username},
+                ),
+            )
+        login = str(account_payload.get("login") or username)
+
+        repos_result = client.check(repos_url, headers=headers)
+        repos_payload = _json_value(repos_result) if repos_result.status_code == 200 else []
+        repo_names: list[str] = []
+        for repo in (repos_payload or []):
+            if isinstance(repo, dict) and not repo.get("fork") and repo.get("name"):
+                repo_names.append(str(repo["name"]))
+        repo_names = repo_names[: self.MAX_REPOS]
+
+        emails: dict[str, set[str]] = {}
+        commit_total = 0
+        for repo in repo_names:
+            commits_url = (
+                f"https://api.github.com/repos/{quote(login)}/{quote(repo)}"
+                f"/commits?per_page={self.MAX_COMMITS_PER_REPO}"
+            )
+            commits_result = client.check(commits_url, headers=headers)
+            commits = _json_value(commits_result) if commits_result.status_code == 200 else []
+            if not isinstance(commits, list):
+                continue
+            for entry in commits:
+                if not isinstance(entry, dict):
+                    continue
+                commit_total += 1
+                git_author = (entry.get("commit") or {}).get("author") or {}
+                email_addr = str(git_author.get("email") or "").strip().lower()
+                name = str(git_author.get("name") or "").strip()
+                if not email_addr or "noreply.github.com" in email_addr:
+                    continue
+                emails.setdefault(email_addr, set()).add(name or login)
+
+        metadata = {
+            "github_username": login,
+            "repos_scanned": ", ".join(repo_names) or "-",
+            "commits_reviewed": str(commit_total),
+        }
+        if not emails:
+            metadata["note"] = (
+                "No author emails in the most recent public commits "
+                "(common for web-interface edits and privacy-set configs)."
+            )
+            return (
+                Finding(
+                    module=self.name, source="commit-emails", target=target.value,
+                    status="not_found", confidence="low",
+                    evidence=f"No commit-author emails found for '{login}' in recent pushes.",
+                    metadata=metadata,
+                ),
+            )
+        metadata["emails"] = ", ".join(sorted(emails))[:400]
+        names = sorted({n for group in emails.values() for n in group})
+        if names:
+            metadata["author_names"] = ", ".join(names)[:200]
+        return (
+            Finding(
+                module=self.name, source="commit-emails", target=target.value,
+                status="candidate",
+                url=f"https://github.com/{login}",
+                title=f"Commit emails: {', '.join(sorted(emails)[:3])}",
+                confidence="high" if len(emails) == 1 else "medium",
+                evidence=(
+                    "Self-published git author identity from public commit history "
+                    "(recently pushed non-fork repositories)."
+                ),
+                metadata=metadata,
+            ),
+        )

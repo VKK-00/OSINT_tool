@@ -34,6 +34,7 @@ from .modules.exif_photo import ExifPhotoModule
 from .modules.legal_intel import CourtListenerModule
 from .modules.person_sources import (
     BlueskyProfileModule,
+    GithubCommitEmailsModule,
     GitHubUserModule,
     MastodonLookupModule,
     WikidataPersonModule,
@@ -106,6 +107,7 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(DorksModule(), network=False, tier="passive"),
     _d(ExifPhotoModule(), network=True, tier="active"),
     _d(GitHubUserModule(), network=True, tier="active", sensitivity="self_published"),
+    _d(GithubCommitEmailsModule(), network=True, tier="active", sensitivity="self_published"),
     _d(MastodonLookupModule(), network=True, tier="active", sensitivity="self_published"),
     _d(BlueskyProfileModule(), network=True, tier="active", sensitivity="self_published"),
     _d(WikidataPersonModule(), network=True, tier="active"),
