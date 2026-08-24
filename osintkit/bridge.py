@@ -11,6 +11,7 @@ from typing import Any
 
 from osint_toolkit.engine import Finding as EngineFinding
 from osint_toolkit.engine import RunConfig, ScanTarget
+from osint_toolkit.entities import EVIDENCE_STATUSES, NON_EVIDENCE_STATUSES
 
 
 def build_run_config(*, live: bool = True, min_request_delay: float = 0.0) -> RunConfig:
@@ -77,12 +78,21 @@ def scan_target(value: str, kind: str | None = None) -> ScanTarget:
 
 
 def core_to_engine(finding, *, target: str) -> EngineFinding:
-    """Convert a legacy core Finding into the unified engine model."""
+    """Convert a legacy core Finding into the unified engine model.
+
+    The original engine status survives in extra['status'] (written by
+    engine_to_core). Restoring it keeps legacy observations from being
+    re-admitted to the evidence graph as positive assertions; when no
+    recorded status exists the finding degrades to 'unknown' (fail-closed).
+    """
+    known = EVIDENCE_STATUSES | NON_EVIDENCE_STATUSES
+    restored = str((finding.extra or {}).get("status") or "").strip()
+    status = restored if restored in known else "unknown"
     return EngineFinding(
         module=finding.source or "osintkit",
         source=str(finding.kind),
         target=target,
-        status="candidate",
+        status=status,
         url=finding.url or "",
         title=str(finding.value)[:200],
         http_status=None,

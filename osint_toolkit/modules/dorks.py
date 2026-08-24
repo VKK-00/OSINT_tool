@@ -35,7 +35,7 @@ class DorksModule:
         def add(label: str, query: str) -> None:
             findings.append(Finding(
                 module=self.name, source="dork", target=target.value,
-                status="candidate", confidence="low",
+                status="planned", confidence="low",  # search pivot: probe, never evidence
                 url=_q("google", query), title=label,
                 metadata={
                     "yandex": _q("yandex", query),
@@ -68,7 +68,7 @@ class DorksModule:
             add("Documents mentioning target", v + " filetype:pdf")
             findings.append(Finding(
                 module=self.name, source="lead", target=target.value,
-                status="candidate", confidence="low",
+                status="planned", confidence="low",  # search pivot: probe, never evidence
                 url=f"https://t.me/{handle}",
                 title=f"Pivot: Telegram alias check t.me/{handle}",
             ))

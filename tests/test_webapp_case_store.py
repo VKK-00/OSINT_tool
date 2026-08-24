@@ -36,7 +36,8 @@ def test_core_to_engine_conversion():
                       confidence="medium", url="https://github.com/x")
     engine = core_to_engine(finding, target="x")
     assert engine.module == "GitHub"
-    assert engine.status == "candidate"
+    # fail-closed: legacy findings without a recorded status degrade to unknown
+    assert engine.status == "unknown"
     assert engine.confidence == "medium"
     assert engine.url == "https://github.com/x"
 

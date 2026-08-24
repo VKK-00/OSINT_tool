@@ -64,8 +64,8 @@ def entities_from_targets(targets: tuple[ScanTarget, ...]) -> tuple[Entity, ...]
 def entities_from_findings(findings: tuple[Finding, ...]) -> tuple[Entity, ...]:
     entities: list[Entity] = []
     for finding in findings:
-        if finding.status in NON_EVIDENCE_STATUSES:
-            continue  # observation, not an assertion (see CONTRACT.md)
+        if not is_evidence_finding(finding):
+            continue  # fail-closed: unknown statuses stay observations
         source = f"{finding.module}:{finding.source}"
         if finding.url:
             entities.append(Entity("url", finding.url, source, finding.confidence, finding.status))

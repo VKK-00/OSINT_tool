@@ -8,7 +8,7 @@ from heapq import heappop, heappush
 from urllib.parse import urlparse
 
 from .engine import Finding, ScanTarget
-from .entities import NON_EVIDENCE_STATUSES, Entity
+from .entities import Entity, is_evidence_finding
 
 
 @dataclass(frozen=True)
@@ -669,8 +669,8 @@ def _edges_from_findings(
     targets_by_value = {target.value: _target_entity(target) for target in targets}
     edges: list[GraphEdge] = []
     for finding in findings:
-        if finding.status in NON_EVIDENCE_STATUSES:
-            continue  # observation, not an assertion (see CONTRACT.md)
+        if not is_evidence_finding(finding):
+            continue  # fail-closed allowlist (docs/CONTRACT.md)
         source = f"{finding.module}:{finding.source}"
         target_entity = targets_by_value.get(finding.target)
         if not target_entity:
