@@ -525,3 +525,97 @@ class DomainsdbSearchModule:
                 },
             ),
         )
+
+
+OTX_PASSIVE_DNS_URL = (
+    "https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns/page?page=1"
+)
+
+
+@dataclass(frozen=True)
+class OtxPassiveDnsModule:
+    """AlienVault OTX passive DNS (free API key, X-OTX-API-KEY header)."""
+
+    name: str = "otx-passive-dns"
+    supported_targets: tuple[str, ...] = ("domain",)
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        host = _host_of(target.value)
+        url = OTX_PASSIVE_DNS_URL.format(domain=quote(host, safe=""))
+        api_key = os.environ.get("OTX_API_KEY", "").strip()
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="otx-passive-dns", target=target.value,
+                    status="planned", url=url, confidence="not_checked",
+                    evidence=(
+                        "Dry run only. Pass --live with OTX_API_KEY to query the "
+                        "OTX passive-DNS history."
+                    ),
+                    metadata={"queried_host": host},
+                ),
+            )
+        if not api_key:
+            return (
+                Finding(
+                    module=self.name, source="otx-passive-dns", target=target.value,
+                    status="skipped", confidence="high",
+                    evidence=(
+                        "OTX_API_KEY is not set; register free at "
+                        "https://otx.alienvault.com to enable passive-DNS history."
+                    ),
+                    metadata={"queried_host": host},
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        result = client.check(url, headers={"X-OTX-API-KEY": api_key})
+        payload = _json_object(result) if result.status_code == 200 else None
+        records = payload.get("passive_dns") if isinstance(payload, dict) else None
+        if not isinstance(records, list):
+            return (
+                Finding(
+                    module=self.name, source="otx-passive-dns", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence=result.error or f"HTTP {result.status_code} from OTX.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        pairs: list[tuple[str, str, str]] = []
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            hostname = str(record.get("hostname") or "").strip().lower()
+            address = str(record.get("address") or "").strip()
+            last_seen = str(record.get("last") or "")[:10]
+            if hostname:
+                pairs.append((hostname, address, last_seen))
+        if not pairs:
+            return (
+                Finding(
+                    module=self.name, source="otx-passive-dns", target=target.value,
+                    status="not_found", http_status=200, confidence="medium",
+                    evidence=f"No OTX passive-DNS records found for '{host}'.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        hosts = [h for h, _a, _t in pairs]
+        ips = sorted({a for _h, a, _t in pairs if a})
+        latest = max((t for _h, _a, t in pairs), default="")
+        return (
+            Finding(
+                module=self.name, source="otx-passive-dns", target=target.value,
+                status="candidate", url=url, http_status=200,
+                confidence="medium",
+                title=f"OTX passive DNS: {len(pairs)} records, latest {latest}",
+                evidence="Historic hostname-to-IP observations from AlienVault OTX.",
+                metadata={
+                    "queried_host": host,
+                    "record_count": str(len(pairs)),
+                    "subdomains": ", ".join(dict.fromkeys(hosts))[:400],
+                    "ips": ", ".join(ips[:15]),
+                    "latest_seen": latest,
+                },
+            ),
+        )

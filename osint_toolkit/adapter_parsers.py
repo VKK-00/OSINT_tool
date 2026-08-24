@@ -77,6 +77,8 @@ PARSER_REPOSITORIES = {
     "Yvesssn/DetectDee",
     "megadose/holehe",
     "megadose/ignorant",
+    "lanmaster53/recon-ng",
+    "bellingcat/auto-archiver",
 }
 
 PHONE_KEYS = {

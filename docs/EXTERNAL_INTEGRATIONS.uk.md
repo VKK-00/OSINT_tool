@@ -24,6 +24,10 @@
 | HIBP breach metadata | `breach_intel.HibpBreachModule` | email live | `HIBP_API_KEY` |
 | psbdmp.ws dump references | `breach_intel.PsbdmpDumpModule` | email/phone/username/domain live | — |
 | Overpass API (OSM nearby) | `exif_photo.overpass_nearby_features` | image з EXIF GPS | — |
+| CourtListener search v4 | `legal_intel.CourtListenerModule` | company/person live (RECAP+opinions) | `COURTLISTENER_API_KEY` |
+| AlienVault OTX passive DNS | `domain_intel.OtxPassiveDnsModule` | domain live | `OTX_API_KEY` |
+| recon-ng headless run | adapter `lanmaster53/recon-ng` | domain live | env RECONNG_* (operator .rc script) |
+| Bellingcat auto-archiver | adapter `bellingcat/auto-archiver` | url archive | env AUTOARCHIVER_CONFIG |
 
 ## Результати дослідження джерел (раунд 2026)
 
@@ -41,8 +45,6 @@ cipher387/API-s-for-OSINT та jivoi/awesome-osint, пропущені чере�
 | Джерело | Напрямок | Примітка |
 |---|---|---|
 | BotsArchive JSON | telegram | каталог ботів; уточнити ендпоінт |
-| CourtListener API | legal-database | повнотекстовий пошук замість тільки архіву |
-| AlienVault OTX | passive DNS/reputation | free key |
 | SecurityTrails | історичні DNS | free tier обмежений |
 
 ## Політика: рішення оператора (2026)

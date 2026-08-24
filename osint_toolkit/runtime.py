@@ -23,6 +23,7 @@ from .modules.domain_intel import (
     DomainsdbSearchModule,
     InternetDbModule,
     IpGeoModule,
+    OtxPassiveDnsModule,
     PassiveDnsModule,
     UrlscanSearchModule,
     WaybackCdxModule,
@@ -30,6 +31,7 @@ from .modules.domain_intel import (
 from .modules.dorks import DorksModule
 from .modules.email_intel import EmailQualityModule
 from .modules.exif_photo import ExifPhotoModule
+from .modules.legal_intel import CourtListenerModule
 from .modules.person_sources import (
     BlueskyProfileModule,
     GitHubUserModule,
@@ -122,6 +124,10 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
        sensitivity="breach_metadata", key=True, key_env="HIBP_API_KEY"),
     _d(PsbdmpDumpModule(), network=True, tier="active",
        sensitivity="breach_derived"),
+    _d(CourtListenerModule(), network=True, tier="passive",
+       key=True, key_env="COURTLISTENER_API_KEY"),
+    _d(OtxPassiveDnsModule(), network=True, tier="passive",
+       key=True, key_env="OTX_API_KEY"),
 )
 
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {

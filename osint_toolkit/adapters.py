@@ -157,6 +157,11 @@ class AdapterSpec:
             "holehe_python": _holehe_python_value(),
             "ignorant_python": _ignorant_python_value(),
             "target_digits": _target_digits(target.value),
+            "reconng_bin": os.environ.get("RECONNG_BIN", "recon-ng"),
+            "reconng_workspace": os.environ.get("RECONNG_WORKSPACE", "<RECONNG_WORKSPACE>"),
+            "reconng_resource": os.environ.get("RECONNG_RESOURCE", "<RECONNG_RESOURCE>"),
+            "autoarchiver_python": os.environ.get("AUTOARCHIVER_PYTHON", sys.executable),
+            "autoarchiver_config": os.environ.get("AUTOARCHIVER_CONFIG", "<AUTOARCHIVER_CONFIG>"),
         }
 
 
@@ -764,6 +769,66 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
         docs_url="https://github.com/smicallef/spiderfoot",
         required_env=("SPIDERFOOT_SF_PATH",),
         optional_env=("SPIDERFOOT_PYTHON",),
+    ),
+    AdapterSpec(
+        "lanmaster53/recon-ng",
+        "recon-ng framework headless run (operator-provided resource script)",
+        "external_cli",
+        "GPL-3.0",
+        "planned",
+        "{reconng_bin} -w {reconng_workspace} -r {reconng_resource}",
+        (
+            "Experimental adapter. recon-ng runs headless from an operator-authored"
+            " resource file (modules + options + 'run' + 'show hosts'); stdout URLs,"
+            " emails and hosts are ingested by the generic parser. Set RECONNG_BIN,"
+            " RECONNG_WORKSPACE and RECONNG_RESOURCE to enable."
+        ),
+        ("domain",),
+        (),
+        install_kind="manual",
+        install_note=(
+            "Clone upstream recon-ng and install requirements; author a .rc resource "
+            "script that loads the passive-host modules for the target and ends with "
+            "'show hosts'."
+        ),
+        docs_url="https://github.com/lanmaster53/recon-ng",
+        required_env=(),
+        optional_env=("RECONNG_BIN", "RECONNG_WORKSPACE", "RECONNG_RESOURCE"),
+        command_templates=(
+            ("domain", (
+                "{reconng_bin}", "-w", "{reconng_workspace}",
+                "--no-verbose", "-r", "{reconng_resource}",
+            )),
+        ),
+    ),
+    AdapterSpec(
+        "bellingcat/auto-archiver",
+        "archive URLs through the Bellingcat auto-archiver pipeline",
+        "external_cli",
+        "NOASSERTION",
+        "planned",
+        "{autoarchiver_python} -m auto_archiver --config {autoarchiver_config} {target_value}",
+        (
+            "Experimental adapter: archives a URL through the operator's configured"
+            " auto-archiver pipeline (wayback, telethon, etc.) and ingests archived"
+            " links from stdout. Set AUTOARCHIVER_PYTHON and AUTOARCHIVER_CONFIG."
+        ),
+        ("url",),
+        (),
+        install_kind="manual",
+        install_note=(
+            "pip install auto-archiver in an isolated environment; author its config"
+            " YAML with the desired archiver steps; set AUTOARCHIVER_CONFIG to it."
+        ),
+        docs_url="https://github.com/bellingcat/auto-archiver",
+        required_env=("AUTOARCHIVER_CONFIG",),
+        optional_env=("AUTOARCHIVER_PYTHON",),
+        command_templates=(
+            ("url", (
+                "{autoarchiver_python}", "-m", "auto_archiver",
+                "--config", "{autoarchiver_config}", "{target_value}",
+            )),
+        ),
     ),
     AdapterSpec(
         "jasonxtn/argus",
