@@ -142,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
             pass
     parser = build_parser()
     args = parser.parse_args(argv)
+    if not os.environ.get("OSINTKIT_HIDE_DEPRECATION"):
+        console.print(
+            "[yellow]note:[/] osintkit CLI is in maintenance mode - new "
+            "capabilities land in the unified engine: [bold]python -m osint_toolkit[/] "
+            "(set OSINTKIT_HIDE_DEPRECATION=1 to silence)"
+        )
     if args.command == "scan":
         return asyncio.run(cmd_scan(args))
     if args.command == "variants":

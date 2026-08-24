@@ -350,6 +350,7 @@ python -m osint_toolkit scan person "Ivan Petrenko" --limit 10
 python -m osint_toolkit scan person "Volodymyr Zelenskyy" --person-alias ze-team --person-alias-file aliases.txt --limit 16
 python -m osint_toolkit scan username exampleuser --limit 10
 python -m osint_toolkit scan username exampleuser --region ru --live --limit 10 --http-retries 2 --request-delay 0.2
+python -m osint_toolkit scan username exampleuser --region ru --live --http-workers 8
 python -m osint_toolkit scan email person@example.com --live --format json
 python -m osint_toolkit scan phone +380441234567
 python -m osint_toolkit scan domain example.com --live --crawl-pages 5 --crawl-depth 1

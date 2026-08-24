@@ -50,64 +50,30 @@ class UsernameScanModule:
             backoff_seconds=config.http_backoff,
         )
         findings: list[Finding] = []
-        request_count = 0
+        checked_sites: list[UsernameSite] = []
         for site in sites:
             skip_reason = site.validate_username(username)
             if skip_reason:
                 findings.append(_skipped_finding(self.name, target.value, username, site, skip_reason))
                 continue
-            if request_count and config.request_delay > 0:
-                time.sleep(config.request_delay)
-            request_count += 1
-            url = site.url_for(username)
-            profile_url = site.profile_url_for(username)
-            headers = dict(site.request_headers)
-            request_body = site.request_body_for(username)
-            if site.request_method == "POST" and _looks_like_json(request_body):
-                header_names = {header.casefold() for header in headers}
-                if "content-type" not in header_names:
-                    headers["Content-Type"] = "application/json"
-            result = client.check(
-                url,
-                fetch_title=True,
-                headers=headers or None,
-                method=site.request_method,
-                body=request_body,
-            )
-            classification = classify_username_http_result(site, username, result)
-            metadata = {
-                "region": site.region,
-                "normalized_username": username,
-                "rule_status": "matched",
-                "content_rule": classification.content_rule,
-                "content_marker": classification.content_marker,
-                "source_projects": ", ".join(site.source_projects),
-                "requested_url": url,
-                "custom_headers": "yes" if headers else "no",
-                "request_method": site.request_method,
-                "http_attempts": str(result.attempts),
-            }
-            if config.request_delay > 0:
-                metadata["request_delay_seconds"] = str(config.request_delay)
-            if config.http_retries:
-                metadata["http_retries"] = str(config.http_retries)
-                metadata["http_backoff_seconds"] = str(config.http_backoff)
-            if profile_url:
-                metadata["profile_url"] = profile_url
-            findings.append(
-                Finding(
-                    module=self.name,
-                    source=site.name,
-                    target=target.value,
-                    status=classification.status,
-                    url=result.final_url or url,
-                    title=result.title,
-                    http_status=result.status_code,
-                    confidence=classification.confidence,
-                    evidence=classification.evidence,
-                    metadata=metadata,
-                )
-            )
+            checked_sites.append(site)
+
+        def run_site(site: UsernameSite) -> Finding:
+            return _check_site(
+                self.name, site, username, target.value, config, client)
+
+        if getattr(config, "http_workers", 1) and config.http_workers > 1:
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=config.http_workers) as pool:
+                checked = list(pool.map(run_site, checked_sites))
+        else:
+            checked = []
+            for index, site in enumerate(checked_sites):
+                if index and config.request_delay > 0:
+                    time.sleep(config.request_delay)
+                checked.append(run_site(site))
+        findings.extend(checked)
         return tuple(findings)
 
 
@@ -119,6 +85,63 @@ def _filter_sites(sites: tuple[UsernameSite, ...], region: str) -> tuple[Usernam
     if region == "ua":
         return tuple(site for site in sites if site.region in {"global", "ua", "ru-ua"})
     return sites
+
+
+def _check_site(
+    module_name: str,
+    site: UsernameSite,
+    username: str,
+    original_target: str,
+    config: RunConfig,
+    client: HttpClient,
+) -> Finding:
+    url = site.url_for(username)
+    profile_url = site.profile_url_for(username)
+    headers = dict(site.request_headers)
+    request_body = site.request_body_for(username)
+    if site.request_method == "POST" and _looks_like_json(request_body):
+        header_names = {header.casefold() for header in headers}
+        if "content-type" not in header_names:
+            headers["Content-Type"] = "application/json"
+    result = client.check(
+        url,
+        fetch_title=True,
+        headers=headers or None,
+        method=site.request_method,
+        body=request_body,
+    )
+    classification = classify_username_http_result(site, username, result)
+    metadata = {
+        "region": site.region,
+        "normalized_username": username,
+        "rule_status": "matched",
+        "content_rule": classification.content_rule,
+        "content_marker": classification.content_marker,
+        "source_projects": ", ".join(site.source_projects),
+        "requested_url": url,
+        "custom_headers": "yes" if headers else "no",
+        "request_method": site.request_method,
+        "http_attempts": str(result.attempts),
+    }
+    if config.request_delay > 0:
+        metadata["request_delay_seconds"] = str(config.request_delay)
+    if config.http_retries:
+        metadata["http_retries"] = str(config.http_retries)
+        metadata["http_backoff_seconds"] = str(config.http_backoff)
+    if profile_url:
+        metadata["profile_url"] = profile_url
+    return Finding(
+        module=module_name,
+        source=site.name,
+        target=original_target,
+        status=classification.status,
+        url=result.final_url or url,
+        title=result.title,
+        http_status=result.status_code,
+        confidence=classification.confidence,
+        evidence=classification.evidence,
+        metadata=metadata,
+    )
 
 
 def classify_username_http_result(

@@ -123,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--http-retries", type=int, default=1, help="Retry 429/temporary 5xx HTTP responses this many times.")
     scan.add_argument("--http-backoff", type=float, default=1.0, help="Base backoff seconds for HTTP retries.")
     scan.add_argument("--request-delay", type=float, default=0.0, help="Delay seconds between live username HTTP checks.")
+    scan.add_argument("--http-workers", type=int, default=1, help="Parallel workers for live username HTTP checks (1 = sequential).")
     scan.add_argument("--crawl-pages", type=int, default=5, help="Maximum same-site pages for live URL/domain crawler.")
     scan.add_argument("--crawl-depth", type=int, default=1, help="Maximum link depth for live URL/domain crawler.")
     scan.add_argument("--person-alias", action="append", default=[], help="Known person alias/handle to include in person username expansion. Can be repeated.")
@@ -285,6 +286,7 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--case-id", help="Optional stable case id when --case-db is used.")
     search.add_argument("--scope-note", default="", help="Scope/context note saved in case metadata when --case-db is used.")
     search.add_argument("--timeout", type=float, default=10.0)
+    search.add_argument("--http-workers", type=int, default=1, help="Parallel workers for live username HTTP checks (1 = sequential).")
     search.add_argument("--adapter-timeout", type=float, default=60.0)
     search.add_argument("--install-timeout", type=float, default=300.0)
     search.add_argument("--adapter-limit", type=int, default=20)
@@ -304,6 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     investigate.add_argument("--instagram", action="append", default=[])
     investigate.add_argument("--social", action="append", default=[])
     investigate.add_argument("--ru-ua", action="append", default=[])
+    investigate.add_argument("--company", action="append", help="Company name or LEI for GLEIF/Companies House lookups. Can be repeated.")
     investigate.add_argument("--region", choices=("all", "ru", "ua"), default="all")
     investigate.add_argument("--live", action="store_true", help="Perform live checks for native modules.")
     investigate.add_argument("--include-adapters", action="store_true", help="Add adapter dry-run commands.")
@@ -318,6 +321,7 @@ def build_parser() -> argparse.ArgumentParser:
     investigate.add_argument("--http-retries", type=int, default=1, help="Retry 429/temporary 5xx HTTP responses this many times.")
     investigate.add_argument("--http-backoff", type=float, default=1.0, help="Base backoff seconds for HTTP retries.")
     investigate.add_argument("--request-delay", type=float, default=0.0, help="Delay seconds between live username HTTP checks.")
+    investigate.add_argument("--http-workers", type=int, default=1, help="Parallel workers for live username HTTP checks (1 = sequential).")
     investigate.add_argument("--crawl-pages", type=int, default=5, help="Maximum same-site pages for live URL/domain crawler.")
     investigate.add_argument("--crawl-depth", type=int, default=1, help="Maximum link depth for live URL/domain crawler.")
     investigate.add_argument("--person-alias", action="append", default=[], help="Known person alias/handle to include in person username expansion. Can be repeated.")
@@ -463,6 +467,7 @@ def handle_scan(args: argparse.Namespace) -> int:
         http_retries=args.http_retries,
         http_backoff=args.http_backoff,
         request_delay=args.request_delay,
+        http_workers=args.http_workers,
         crawl_pages=args.crawl_pages,
         crawl_depth=args.crawl_depth,
         person_aliases=_person_aliases_from_args(args),
@@ -749,6 +754,7 @@ def handle_search(args: argparse.Namespace) -> int:
         adapter_workers=args.adapter_workers,
         adapter_repositories=executable_adapters,
         native_kinds=native_kinds_for_plan(plan),
+        http_workers=args.http_workers,
         allowed_native_modules=plan.profile.native_modules or None,
     )
     content = _render_search_execution(
@@ -922,6 +928,7 @@ def handle_investigate(args: argparse.Namespace) -> int:
         http_retries=args.http_retries,
         http_backoff=args.http_backoff,
         request_delay=args.request_delay,
+        http_workers=args.http_workers,
         crawl_pages=args.crawl_pages,
         crawl_depth=args.crawl_depth,
         person_aliases=_person_aliases_from_args(args),
@@ -1141,6 +1148,8 @@ def _targets_from_args(args: argparse.Namespace) -> tuple[ScanTarget, ...]:
             targets.append(ScanTarget(kind=kind, value=value, region=args.region))
     for value in args.ru_ua:
         targets.append(ScanTarget(kind="ru-ua", value=value, region=args.region))
+    for value in getattr(args, "company", []) or []:
+        targets.append(ScanTarget(kind="company", value=value, region=args.region))
     return tuple(targets)
 
 

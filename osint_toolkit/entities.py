@@ -188,6 +188,9 @@ def entities_from_findings(findings: tuple[Finding, ...]) -> tuple[Entity, ...]:
                     "asn": "asn",
                     "port": "port",
                     "technology": "technology",
+                    "legal_name": "name",
+                    "company_number": "registry-number",
+                    "lei": "lei",
                 }.get(key, entity_kind)
                 entities.append(Entity(entity_kind, value, source, finding.confidence, f"metadata:{key}"))
     return dedupe_entities(tuple(entities))
@@ -324,6 +327,9 @@ def _metadata_entity_kind(key: str) -> str:
         "camera",
         "taken_date",
         "sanction_topic",
+        "legal_name",
+        "company_number",
+        "lei",
     }
     return key if key in supported else ""
 
