@@ -40,6 +40,7 @@
 - [x] Case store: guard від новішої схеми, lookup-індекси; leaks: raw lines вимкнені за замовчуванням, purge CLI
 - [ ] Консолідація пакетів: osintkit стає тонким CLI/web-шаром над рушієм osint_toolkit — план у [MIGRATION_OSINTKIT.uk.md](MIGRATION_OSINTKIT.uk.md)
 - [x] Module registry: профілі обирають конкретні module IDs (network_access/risk_tier/requires_key), tri-state native_modules (None/()/allowlist), snapshot-тести складу
+- [x] Контрактний шар модулів: provenance (api_endpoint) у реєстрі, health-статуси, sweep-тест усіх модулів на документовані статуси та dry-run без evidence для network-модулів
 - [ ] Confidence model split: source/identity/assertion confidence + severity + corroboration_count замість однієї low/medium/high шкали
 - [x] Watch osintkit пише рескани в спільний case store; leaks/sanctions мігрували в out/cases.sqlite (авто-міграція з index.db)
 

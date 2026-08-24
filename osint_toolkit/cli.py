@@ -588,20 +588,22 @@ def handle_modules(args: argparse.Namespace) -> int:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
         return 0
     if args.format == "markdown":
-        header = "| Module ID | Targets | Network | Risk | Sensitivity | Index | Key |"
-        sep = "|---|---|---|---|---|---|---|"
+        header = ("| Module ID | Targets | Network | Risk | Sensitivity | Index | Key | "
+                  "| API endpoint | Health |")
+        sep = "|---|---|---|---|---|---|---|---|---|"
         lines = [header, sep]
         for row in rows:
+            health = "healthy" if row["last_live_check"] else "unverified"
             lines.append(
                 f"| {row['module_id']} | {', '.join(row['target_kinds'])} "
                 f"| {row['network_access']} | {row['risk_tier']} "
                 f"| {row['data_sensitivity']} | {row['requires_index']} "
-                f"| {row['key_env'] or '-'} |"
+                f"| {row['key_env'] or '-'} | `{row['api_endpoint'] or '-'}` "
+                f"| {health} |"
             )
         print("\n".join(lines))
         return 0
     for row in rows:
-        key = f" ({row['key_env']})" if row["key_env"] else ""
         flags = []
         if row["network_access"]:
             flags.append("network")
@@ -609,8 +611,10 @@ def handle_modules(args: argparse.Namespace) -> int:
             flags.append("index")
         if row["requires_key"]:
             flags.append("key")
-        print(f"{row['module_id']:<32} {', '.join(row['target_kinds']):<40} "
-              f"{row['risk_tier']:<8} {'/'.join(flags) or 'offline'}{key}")
+        health = "healthy" if row["last_live_check"] else "unverified"
+        print(f"{row['module_id']:<30} {', '.join(row['target_kinds']):<36} "
+              f"{row['risk_tier']:<7} {'/'.join(flags) or 'offline':<10}"
+              f"{' '.join(flags):<0}{health}")
     return 0
 
 

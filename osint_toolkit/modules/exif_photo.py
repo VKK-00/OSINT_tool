@@ -68,6 +68,11 @@ class ExifPhotoModule:
             return (Finding(module=self.name, source="pillow", target=url,
                             status="not_found", confidence="low",
                             evidence="URL does not look like an image"),)
+        if not config.live:
+            return (Finding(module=self.name, source="pillow", target=url,
+                            status="planned", confidence="not_checked",
+                            evidence=("Dry run only. Pass --live to download and "
+                                      "parse the image metadata.")),)
         try:
             resp = httpx.get(url, timeout=config.timeout,
                              headers={"User-Agent": config.user_agent},

@@ -59,6 +59,9 @@ class ModuleDescriptor:
     requires_index: bool = False         # needs a locally built index first
     requires_key: bool = False           # needs an operator-provided API key
     key_env: str = ""
+    api_endpoint: str = ""               # provenance: documented API base/endpoint
+    last_live_check: str = ""            # date of the last verified live run
+    dry_run_evidence: bool = False       # offline generators may assert in dry-run
 
     @property
     def module_id(self) -> str:
@@ -78,11 +81,15 @@ class ModuleDescriptor:
             "requires_index": self.requires_index,
             "requires_key": self.requires_key,
             "key_env": self.key_env,
+            "api_endpoint": self.api_endpoint,
+            "last_live_check": self.last_live_check,
+            "dry_run_evidence": self.dry_run_evidence,
         }
 
 
 def _d(instance: object, *, network: bool, tier: str, sensitivity: str = "public",
-       index: bool = False, key: bool = False, key_env: str = "") -> ModuleDescriptor:
+       index: bool = False, key: bool = False, key_env: str = "",
+       api: str = "", last_check: str = "", dry_evidence: bool = False) -> ModuleDescriptor:
     return ModuleDescriptor(
         instance=instance,
         network_access=network,
@@ -91,6 +98,9 @@ def _d(instance: object, *, network: bool, tier: str, sensitivity: str = "public
         requires_index=index,
         requires_key=key,
         key_env=key_env,
+        api_endpoint=api,
+        last_live_check=last_check,
+        dry_run_evidence=dry_evidence,
     )
 
 
@@ -104,7 +114,7 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(TelegramScanModule(), network=True, tier="active", sensitivity="public_social"),
     _d(InstagramPublicProfileModule(), network=True, tier="active", sensitivity="public_social"),
     _d(SocialPublicProfileModule(), network=True, tier="active", sensitivity="public_social"),
-    _d(RuUaSourcePackModule(), network=False, tier="passive"),
+    _d(RuUaSourcePackModule(), network=False, tier="passive", dry_evidence=True),
     _d(SanctionsIndexModule(), network=False, tier="passive", sensitivity="watchlist", index=True),
     _d(DeepLeaksModule(), network=False, tier="passive", sensitivity="breach_derived", index=True),
     _d(DorksModule(), network=False, tier="passive"),
@@ -140,6 +150,38 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(BotsArchiveModule(), network=True, tier="passive"),
 )
 
+
+# Documented upstream API provenance per module (review: supply-chain/provenance).
+_API_PROVENANCE = {
+    "github-user": "https://api.github.com/users/{user}",
+    "github-commit-emails": "https://api.github.com/users/{user}/repos",
+    "mastodon-lookup": "https://{instance}/api/v1/accounts/lookup",
+    "bluesky-profile": "https://api.bsky.app/xrpc/app.bsky.actor.getProfile",
+    "wikidata-person": "https://www.wikidata.org/w/api.php",
+    "internetdb-ip": "https://internetdb.shodan.io/{ip}",
+    "wayback-cdx": "https://web.archive.org/cdx/search/cdx",
+    "urlscan-search": "https://urlscan.io/api/v1/search/",
+    "ip-api-geo": "http://ip-api.com/json/{ip}",
+    "domainsdb-search": "https://api.domainsdb.info/v1/domains/search",
+    "email-quality": "https://eva.pingutil.com/email",
+    "gleif-company": "https://api.gleif.org/api/v1/entities",
+    "companies-house": "https://api.company-information.service.gov.uk/search/companies",
+    "courtlistener-search": "https://www.courtlistener.com/api/rest/v4/search/",
+    "otx-passive-dns": "https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns",
+    "otx-reputation": "https://otx.alienvault.com/api/v1/indicators/domain/{domain}/general",
+    "hibp-breaches": "https://haveibeenpwned.com/api/v3/breachedaccount/{account}",
+    "psbdmp-dumps": "https://psbdmp.ws/api/search/{term}",
+    "botsarchive-bot": "https://api.botsarchive.com/getBotID.php",
+}
+
+MODULE_DESCRIPTORS = tuple(
+    (
+        __import__("dataclasses").replace(d, api_endpoint=_API_PROVENANCE.get(d.module_id, ""))
+        if d.module_id in _API_PROVENANCE
+        else d
+    )
+    for d in MODULE_DESCRIPTORS
+)
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {
     descriptor.module_id: descriptor for descriptor in MODULE_DESCRIPTORS
 }
