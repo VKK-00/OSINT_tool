@@ -229,6 +229,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "wayback-cdx",
         "urlscan-search",
         "gleif-company",
+        "predictasearch",
         ),
         adapter_profiles=("username-full", "email-safe", "phone-safe", "domain-recon", "url-archive"),
         local_tools=("powershell-file-baseline", "exiftool", "imagemagick-identify", "tesseract-ocr", "zbarimg"),
@@ -263,6 +264,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "wayback-cdx",
         "urlscan-search",
         "gleif-company",
+        "predictasearch",
         ),
         adapter_profiles=(
             "username-full",
@@ -304,6 +306,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         native_kinds=("phone",),
         native_modules=(
         "phone-baseline",
+        "predictasearch",
         ),
         adapter_profiles=("phone-safe", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
@@ -319,6 +322,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         native_modules=(
         "email-baseline",
         "email-quality",
+        "predictasearch",
         ),
         adapter_profiles=("email-safe", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
@@ -338,6 +342,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "github-commit-emails",
         "mastodon-lookup",
         "bluesky-profile",
+        "predictasearch",
         ),
         adapter_profiles=("username-full", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
@@ -357,6 +362,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         "mastodon-lookup",
         "bluesky-profile",
         "courtlistener-search",
+        "predictasearch",
         ),
         adapter_profiles=("username-full", "username-ru-ua"),
     ),

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import html as html_mod
 import json
+import os
 import re
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -710,3 +711,121 @@ class GithubCommitEmailsModule:
                 metadata=metadata,
             ),
         )
+
+PREDICTASEARCH_SEARCH_URL = "https://dev.predictasearch.com/api/search"
+
+
+@dataclass(frozen=True)
+class PredictasearchModule:
+    """Official PredictaSearch reverse-lookup (operator API key, x-api-key header).
+
+    Operator-approved account-probing class: one query per run returns the
+    platform profiles associated with an email/phone/username. Documented
+    OpenAPI: https://dev.predictasearch.com/redoc
+    """
+
+    name: str = "predictasearch"
+    supported_targets: tuple[str, ...] = ("email", "phone", "username")
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        value = target.value.strip()
+        api_key = os.environ.get("PREDICTASEARCH_API_KEY", "").strip()
+        if not api_key:
+            return (
+                Finding(
+                    module=self.name, source="ps-api", target=value,
+                    status="skipped", confidence="high",
+                    evidence=(
+                        "PREDICTASEARCH_API_KEY is not set; get one at "
+                        "https://www.predictasearch.com/ to enable the lookup."
+                    ),
+                ),
+            )
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="ps-api", target=value,
+                    status="planned", url=PREDICTASEARCH_SEARCH_URL,
+                    confidence="not_checked",
+                    evidence="Dry run only. Pass --live to query PredictaSearch.",
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries,
+                            backoff_seconds=config.http_backoff)
+        body = json.dumps({
+            "query": value,
+            "query_type": (target.kind
+                           if target.kind in {"email", "phone", "username"}
+                           else "username"),
+            "networks": ["all"],
+        })
+        result = client.check(
+            PREDICTASEARCH_SEARCH_URL,
+            headers={"x-api-key": api_key, "Content-Type": "application/json"},
+            method="POST",
+            body=body,
+        )
+        payload = _json_value(result) if result.status_code == 200 else None
+        people = _extract_people(payload)
+        if result.status_code in {401, 403}:
+            return (
+                Finding(
+                    module=self.name, source="ps-api", target=value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence="PredictaSearch rejected the API key.",
+                ),
+            )
+        if people is None:
+            return (
+                Finding(
+                    module=self.name, source="ps-api", target=value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence=result.error or f"HTTP {result.status_code} from PredictaSearch.",
+                ),
+            )
+        if not people:
+            return (
+                Finding(
+                    module=self.name, source="ps-api", target=value,
+                    status="not_found", http_status=200, confidence="medium",
+                    evidence="PredictaSearch returned no profiles for this query.",
+                ),
+            )
+        preview = json.dumps(people[:2], ensure_ascii=False)[:700]
+        networks = sorted({
+            str(p.get("network") or p.get("platform") or "")
+            for p in people if isinstance(p, dict)
+        } - {""})
+        return (
+            Finding(
+                module=self.name, source="predictasearch-profiles", target=value,
+                status="candidate", url="https://www.predictasearch.com/",
+                title=f"PredictaSearch: {len(people)} profile(s) linked",
+                confidence="medium", http_status=200,
+                evidence=(
+                    "Operator-keyed reverse lookup. Review the returned profiles "
+                    "before attributing them to a specific person."
+                ),
+                metadata={
+                    "people_count": str(len(people)),
+                    "networks": ", ".join(networks)[:300],
+                    "preview_json": preview,
+                },
+            ),
+        )
+
+
+def _extract_people(payload):
+    """Pull a list of profile dicts from the free-form 200-response shape."""
+    if isinstance(payload, list):
+        return [p for p in payload if isinstance(p, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("people", "results", "data", "profiles"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [p for p in value if isinstance(p, dict)]
+    return []

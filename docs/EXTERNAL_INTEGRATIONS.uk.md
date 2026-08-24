@@ -28,6 +28,7 @@
 | AlienVault OTX passive DNS | `domain_intel.OtxPassiveDnsModule` | domain live | `OTX_API_KEY` |
 | recon-ng headless run | adapter `lanmaster53/recon-ng` | domain live | env RECONNG_* (operator .rc script) |
 | Bellingcat auto-archiver | adapter `bellingcat/auto-archiver` | url archive | env AUTOARCHIVER_CONFIG |
+| PredictaSearch reverse lookup | `person_sources.PredictasearchModule` | email/phone/username live | `PREDICTASEARCH_API_KEY` |
 
 ## Результати дослідження джерел (раунд 2026)
 
@@ -55,9 +56,9 @@ cipher387/API-s-for-OSINT та jivoi/awesome-osint, пропущені чере�
 соцплатформи) — повноцінні restricted-адаптери: команди, парсери `[+] Site`
 виводу, readiness. Доступні **лише** через `--include-restricted` /
 `run-adapter --allow-restricted --execute`, один таргет за запуск.
-SaaS-обгортки над тим самим (epieos, castrickclues, predictasearch,
-whatsapp.checkleaked, telegram-finder, detectiva) не інтегруються: закриті
-сервіси без публічного API — скрейпинг не робимо, OSS-еквіваленти вбудовані.
+SaaS-обгортки над тим самим не інтегруються: закриті
+сервіси без публічного API — скрейпинг не робимо. Виняток, підтверджений дослідженням: **PredictaSearch** має офіційний задокументований API (OpenAPI: dev.predictasearch.com/redoc) — реалізовано як keyed-модуль `predictasearch` (email/phone/username → пов'язані профілі, x-api-key). Реста (epieos, castrickclues,
+whatsapp.checkleaked, telegram-finder, detectiva) — верифіковано без публічного API; OSS-еквіваленти вбудовані.
 
 ### Breach-metadata — реалізовано у межах лінії ✅
 

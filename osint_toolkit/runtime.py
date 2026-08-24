@@ -37,6 +37,7 @@ from .modules.person_sources import (
     GithubCommitEmailsModule,
     GitHubUserModule,
     MastodonLookupModule,
+    PredictasearchModule,
     WikidataPersonModule,
 )
 
@@ -108,6 +109,8 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(ExifPhotoModule(), network=True, tier="active"),
     _d(GitHubUserModule(), network=True, tier="active", sensitivity="self_published"),
     _d(GithubCommitEmailsModule(), network=True, tier="active", sensitivity="self_published"),
+    _d(PredictasearchModule(), network=True, tier="active",
+       sensitivity="public_social", key=True, key_env="PREDICTASEARCH_API_KEY"),
     _d(MastodonLookupModule(), network=True, tier="active", sensitivity="self_published"),
     _d(BlueskyProfileModule(), network=True, tier="active", sensitivity="self_published"),
     _d(WikidataPersonModule(), network=True, tier="active"),
