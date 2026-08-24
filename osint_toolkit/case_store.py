@@ -10,10 +10,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .engine import ScanTarget
+
 if TYPE_CHECKING:
     from .investigation import InvestigationResult
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 class CaseStoreError(Exception):
@@ -335,6 +337,70 @@ class CaseStore:
                 raise CaseStoreError(f"case not found: {normalized_case_id}")
         return normalized_case_id
 
+    # --- watch state (unified watch over the shared case store) ---
+
+    def get_watch_state(self, watch_id: str) -> dict[str, object] | None:
+        normalized = watch_id.strip()
+        if not normalized:
+            raise CaseStoreError("watch_id cannot be empty.")
+        with self._open() as conn:
+            _ensure_schema(conn)
+            row = conn.execute(
+                """SELECT targets_json, entity_keys_json, last_run_at, cycle_count
+                   FROM watch_state WHERE watch_id = ?""",
+                (normalized,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            entity_keys = json.loads(row["entity_keys_json"])
+        except json.JSONDecodeError:
+            entity_keys = []
+        return {
+            "watch_id": normalized,
+            "targets": json.loads(row["targets_json"]),
+            "entity_keys": entity_keys,
+            "last_run_at": row["last_run_at"],
+            "cycle_count": int(row["cycle_count"]),
+        }
+
+    def set_watch_state(
+        self,
+        watch_id: str,
+        *,
+        targets: tuple[ScanTarget, ...],
+        entity_keys: list[list[str]],
+        last_run_at: str,
+        cycle_count: int,
+    ) -> None:
+        normalized = watch_id.strip()
+        if not normalized:
+            raise CaseStoreError("watch_id cannot be empty.")
+        with self._open() as conn:
+            _ensure_schema(conn)
+            conn.execute(
+                """INSERT INTO watch_state(
+                       watch_id, targets_json, entity_keys_json,
+                       last_run_at, cycle_count)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(watch_id) DO UPDATE SET
+                       targets_json = excluded.targets_json,
+                       entity_keys_json = excluded.entity_keys_json,
+                       last_run_at = excluded.last_run_at,
+                       cycle_count = excluded.cycle_count""",
+                (
+                    normalized,
+                    json.dumps(
+                        [{"kind": t.kind, "value": t.value, "region": t.region}
+                         for t in targets],
+                        ensure_ascii=False,
+                    ),
+                    json.dumps(entity_keys),
+                    last_run_at,
+                    cycle_count,
+                ),
+            )
+
     def load_case(self, case_id: str) -> dict[str, object]:
         with self._open() as conn:
             _ensure_schema(conn)
@@ -623,6 +689,14 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             value_json TEXT NOT NULL,
             PRIMARY KEY (case_id, key),
             FOREIGN KEY (case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS watch_state (
+            watch_id TEXT PRIMARY KEY,
+            targets_json TEXT NOT NULL,
+            entity_keys_json TEXT NOT NULL,
+            last_run_at TEXT NOT NULL,
+            cycle_count INTEGER NOT NULL DEFAULT 0
         );
         """
     )

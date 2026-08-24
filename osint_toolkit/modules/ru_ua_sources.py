@@ -129,6 +129,22 @@ RU_UA_SOURCES: tuple[RuUaSource, ...] = (
         "Russian federal resource of legally significant publications: bankruptcies, pledges, liquidation notices.",
         ("local-curation",),
     ),
+    RuUaSource(
+        "UA Police Wanted",
+        "https://wanted.mvs.gov.ua/",
+        "public-registry",
+        "ua",
+        "National Police of Ukraine official wanted lists, including the registry of Russian war-crime suspects.",
+        ("local-curation",),
+    ),
+    RuUaSource(
+        "UK PSC Register",
+        "https://find-and-update.company-information.service.gov.uk/",
+        "legal-database",
+        "global",
+        "UK Companies House people-with-significant-control and officers search; free API key available.",
+        ("jivoi/awesome-osint",),
+    ),
     # --- telegram channel catalogs (public search surfaces) ---
     RuUaSource(
         "Telegago (Google CSE)",

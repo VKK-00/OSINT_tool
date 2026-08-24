@@ -294,6 +294,30 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--derived-limit", type=int, default=20, help="Maximum image-derived seeds to route into normal search.")
     search.set_defaults(handler=handle_search)
 
+    watch = subparsers.add_parser(
+        "watch",
+        help="Scheduled re-scan with entity-level diff, persisted in the shared case store.",
+    )
+    watch.add_argument("--title", default="Watch")
+    watch.add_argument("--email", action="append", default=[])
+    watch.add_argument("--phone", action="append", default=[])
+    watch.add_argument("--domain", action="append", default=[])
+    watch.add_argument("--url", action="append", default=[])
+    watch.add_argument("--username", action="append", default=[])
+    watch.add_argument("--company", action="append", default=[])
+    watch.add_argument("--from-file", dest="from_file", help="Targets file: one 'kind=value' or bare value per line; '#' comments allowed.")
+    watch.add_argument("--profile", default="safe", help="Search profile whose native_modules scope the watch.")
+    watch.add_argument("--region", choices=("all", "ru", "ua"), default="all")
+    watch.add_argument("--live", action="store_true", help="Perform live checks each cycle.")
+    watch.add_argument("--timeout", type=float, default=10.0)
+    watch.add_argument("--http-workers", type=int, default=1)
+    watch.add_argument("--request-delay", type=float, default=0.0, help="Delay seconds between live username HTTP checks.")
+    watch.add_argument("--interval-min", type=int, default=60, help="Minutes between cycles.")
+    watch.add_argument("--cycles", type=int, default=0, help="Run N cycles then exit. 0 = loop until interrupted.")
+    watch.add_argument("--case-db", required=True)
+    watch.add_argument("--case-id", required=True, help="Live case id overwritten every cycle.")
+    watch.set_defaults(handler=handle_watch)
+
     investigate = subparsers.add_parser("investigate", help="Run a multi-target OSINT case through native modules.")
     investigate.add_argument("--title", default="OSINT investigation")
     investigate.add_argument("--person", action="append", default=[], help="Person name to expand into username candidates.")
@@ -306,6 +330,7 @@ def build_parser() -> argparse.ArgumentParser:
     investigate.add_argument("--instagram", action="append", default=[])
     investigate.add_argument("--social", action="append", default=[])
     investigate.add_argument("--ru-ua", action="append", default=[])
+    investigate.add_argument("--from-file", dest="from_file", help="Targets file: one 'kind=value' or bare value per line; '#' comments allowed.")
     investigate.add_argument("--company", action="append", help="Company name or LEI for GLEIF/Companies House lookups. Can be repeated.")
     investigate.add_argument("--region", choices=("all", "ru", "ua"), default="all")
     investigate.add_argument("--live", action="store_true", help="Perform live checks for native modules.")
@@ -394,7 +419,7 @@ def build_parser() -> argparse.ArgumentParser:
     case_graph.add_argument("--entity-kind", default="", help="Optional focus entity kind, for example email.")
     case_graph.add_argument("--entity-value", default="", help="Optional focus entity value, for example person@example.com.")
     case_graph.add_argument("--limit", type=int, default=10)
-    case_graph.add_argument("--format", choices=("table", "markdown", "json"), default="table")
+    case_graph.add_argument("--format", choices=("table", "markdown", "json", "gexf"), default="table")
     case_graph.set_defaults(handler=handle_case_graph)
 
     case_index = subparsers.add_parser("case-index", help="Index and search entities across saved cases.")
@@ -475,6 +500,77 @@ def handle_scan(args: argparse.Namespace) -> int:
     findings = engine.scan(target, config)
     print(format_findings(findings, output_format=args.format))
     return 0
+
+
+def handle_watch(args: argparse.Namespace) -> int:
+    import time
+
+    from .case_store import CaseStore
+    from .search import find_search_profile
+    from .watch import WatchRunner
+
+    targets = _targets_from_args(args)
+    if getattr(args, "company", []):
+        targets = tuple(targets) + tuple(
+            ScanTarget(kind="company", value=value, region=args.region)
+            for value in args.company
+        )
+    if args.from_file:
+        extra = _targets_from_file(args.from_file, region=args.region)
+        targets = tuple(targets) + extra
+    if not targets:
+        print("error: no targets given (use --email/--domain/--from-file/...)", file=sys.stderr)
+        return 2
+
+    profile = find_search_profile(args.profile)
+    store = CaseStore(args.case_db)
+    runner = WatchRunner(
+        store,
+        live=args.live,
+        timeout=args.timeout,
+        http_workers=args.http_workers,
+        request_delay=args.request_delay,
+    )
+    interval = max(1, args.interval_min) * 60
+    cycle = 0
+    while True:
+        cycle += 1
+        result = runner.run_cycle(
+            args.case_id,
+            targets,
+            allowed_native_modules=profile.native_modules or None,
+            native_kinds=profile.native_kinds or None,
+            title=f"Watch: {args.case_id} cycle {cycle}",
+        )
+        stamp = result.generated_at
+        print(f"[{stamp}] cycle {result.cycle_number}: "
+              f"{result.total_entities} entities, {result.findings_count} findings, "
+              f"{len(result.new_entities)} NEW")
+        for entity in result.new_entities:
+            print(f"  NEW {entity.kind}: {entity.value}")
+        if args.cycles and cycle >= args.cycles:
+            break
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            break
+    return 0
+
+
+def _targets_from_file(path: str, *, region: str) -> tuple[ScanTarget, ...]:
+    from .search import classify_target
+
+    targets: list[ScanTarget] = []
+    for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line and line.split("=", 1)[0].strip() in TARGET_KINDS:
+            kind, _, value = line.partition("=")
+            targets.append(ScanTarget(kind=kind.strip(), value=value.strip(), region=region))
+        else:
+            targets.append(ScanTarget(kind=classify_target(line), value=line, region=region))
+    return tuple(targets)
 
 
 def handle_adapters(args: argparse.Namespace) -> int:
@@ -1050,6 +1146,9 @@ def handle_case_delete(args: argparse.Namespace) -> int:
 
 def handle_case_graph(args: argparse.Namespace) -> int:
     payload = CaseStore(args.case_db).load_case(args.case_id)
+    if args.format == "gexf":
+        print(build_case_gexf(payload))
+        return 0
     analysis = analyze_case_graph(
         payload,
         focus_kind=args.entity_kind,
@@ -1058,6 +1157,52 @@ def handle_case_graph(args: argparse.Namespace) -> int:
     )
     print(format_case_graph_analysis(analysis, output_format=args.format))
     return 0
+
+
+def build_case_gexf(payload: dict) -> str:
+    """GEXF 1.3 export of the case graph for Gephi / yEd."""
+    import xml.etree.ElementTree as ET
+
+    ns = "http://gexf.net/1.3"
+    root = ET.Element("gexf", {"xmlns": ns, "version": "1.3"})
+    graph_el = ET.SubElement(root, "graph", {
+        "mode": "static", "defaultedgetype": "directed",
+    })
+    nodes_el = ET.SubElement(graph_el, "nodes")
+    seen_nodes: set[str] = set()
+    index = 0
+    entity_index: dict[tuple[str, str], str] = {}
+    for entity in payload.get("entities", []):
+        key = f"{entity['kind']}|{entity['value']}".lower()
+        if key in seen_nodes:
+            continue
+        seen_nodes.add(key)
+        node_id = f"n{index}"
+        index += 1
+        entity_index[(entity["kind"].lower(), entity["value"].lower())] = node_id
+        node = ET.SubElement(nodes_el, "node", {"id": node_id, "label": entity["value"]})
+        attrs = ET.SubElement(node, "attvalues")
+        ET.SubElement(attrs, "attvalue", {"for": "kind", "value": entity.get("kind", "")})
+    edges_el = ET.SubElement(graph_el, "edges")
+    edge_count = 0
+    for ordinal, edge in enumerate(payload.get("edges", [])):
+        source_key = (str(edge["source_kind"]).lower(), str(edge["source_value"]).lower())
+        target_key = (str(edge["target_kind"]).lower(), str(edge["target_value"]).lower())
+        source_id = entity_index.get(source_key)
+        target_id = entity_index.get(target_key)
+        if not source_id or not target_id or source_id == target_id:
+            continue
+        ET.SubElement(edges_el, "edge", {
+            "id": f"e{ordinal}", "source": source_id, "target": target_id,
+            "label": edge.get("relation", ""), "weight": "1.0",
+        })
+        edge_count += 1
+    xml_body = ET.tostring(root, encoding="unicode")
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        + xml_body
+        + f"\n<!-- entities: {len(seen_nodes)}; edges written: {edge_count} -->"
+    )
 
 
 def handle_case_index(args: argparse.Namespace) -> int:
@@ -1144,12 +1289,14 @@ def _read_person_alias_file(path: str) -> tuple[str, ...]:
 def _targets_from_args(args: argparse.Namespace) -> tuple[ScanTarget, ...]:
     targets: list[ScanTarget] = []
     for kind in ("person", "username", "email", "phone", "domain", "url", "telegram", "instagram", "social"):
-        for value in getattr(args, kind):
+        for value in getattr(args, kind, []) or []:
             targets.append(ScanTarget(kind=kind, value=value, region=args.region))
-    for value in args.ru_ua:
+    for value in getattr(args, "ru_ua", []) or []:
         targets.append(ScanTarget(kind="ru-ua", value=value, region=args.region))
     for value in getattr(args, "company", []) or []:
         targets.append(ScanTarget(kind="company", value=value, region=args.region))
+    if getattr(args, "from_file", None):
+        targets.extend(_targets_from_file(args.from_file, region=args.region))
     return tuple(targets)
 
 

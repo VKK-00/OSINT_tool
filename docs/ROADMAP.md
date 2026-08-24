@@ -25,6 +25,11 @@
 - [x] Персо-OSINT збагачення з публічних джерел: GitHub/Mastodon/Bluesky профілі (username), Wikidata дізамбігуація осіб (person), Gravatar-профіль (email live)
 - [x] Доменна розвідка: Shodan InternetDB IP-exposure, Wayback CDX вік домену, urlScan history (за ключем оператора); UA/RF публічні реєстри в ru-ua source pack
 - [x] Legal-пошук (CourtListener), OTX passive DNS; recon-ng/auto-archiver експериментальні адаптери (env-конфігурація)
+- [x] Unified Watch: `watch` команда з entity-level diff у спільному case store (--cycles/--interval-min, live case перезаписується щоцикл)
+- [x] `investigate --from-file` і `watch --from-file`: batch таргети з файлу (kind=value або auto-classify)
+- [x] GEXF 1.3 експорт графа кейса для Gephi/yEd (`case-graph --format gexf`)
+- [x] Monthly snapshot cron workflow (авто-PR при оновленні upstream датасетів)
+- [x] Source pack: FSSP РФ, Розшук МВС УКРАЇНИ, UK PSC Register
 - [x] Passive-DNS hostnames (HackerTarget, keyless) + UK Companies House (free key) у company-напрямі; scripts/update_snapshots.py для Sherlock/WMN снапшотів
 - [x] SOCMINT-глибина: останні публічні пости Mastodon та Bluesky author feed у live username-сканах
 - [x] Новий target kind `company`: GLEIF open lookup (ім'я або LEI) + профіль `company-safe`

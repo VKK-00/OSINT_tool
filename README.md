@@ -12,6 +12,7 @@ python -m osint_toolkit stats                 # каталог top-100 OSINT-п�
 python -m osint_toolkit modules               # реєстр модулів: мережа/ризик/ключі
 python -m osint_toolkit search email person@example.com --plan-only    # план без запитів
 python -m osint_toolkit toolbox --serve --open # локальний пульт оператора
+python -m osint_toolkit watch --email a@b.com --profile deep-full --case-db cases.sqlite --case-id w1 --live --cycles 4 --interval-min 60  # моніторинг з entity-diff
 ```
 
 ## Три типових сценарії
