@@ -43,14 +43,52 @@
 
 ## Ресурси-датасети
 
-- ✅ Оновлення bundled snapshots автоматизоване: `python scripts/update_snapshots.py` тягне Sherlock + WhatsMyName з upstream, валідує лоадерами, оновлює THIRD_PARTY_NOTICES (поточні коміти: sherlock 206068d [без змін контенту], wmn d434994). Maigret потребує порту санитайзера projection у репо — окрема задача.
-- Розширення `ru_ua_sources`: публічні реєстри UA (`data.gov.ua`, `reyestr.court.gov.ua`) та RF-джерела з поточної розмітки top-100 — як curated source pack, не як скрапери.
+- ✅ Оновлення bundled snapshots автоматизоване: `python scripts/update_snapshots.py` тягне Sherlock + WhatsMyName + Maigret (з портованим санитайзером) з upstream, валідує лоадерами, оновлює THIRD_PARTY_NOTICES. Стан: sherlock 206068d (контент без змін), wmn d434994 (715 entries), maigret 86593e7 (1906 rules); датасет загалом 2445 шаблонів / 24 POST.
+- ✅ Розширення `ru_ua_sources` зроблено: категорії `public-registry` та `telegram-catalog`, плюс глобальні `legal-database`.
 
-## Що НЕ інтегрувати (свідомо)
+## Результати дослідження джерел (поточний раунд)
 
-- HIBP/breach-lookup у native-коді — закривається adapters `h8mail`/`mosint` з явним `--execute`.
-- Будь-які API, що вимагають логін-сесію соцмережі, скрейпинг за логіном, обходи rate-limit.
-- Платні агрегатори (Maltego transform hubs тощо) — поза scope локального інструмента.
+Метод: GitHub topic:osint top-by-stars + свіжі created:>2025 репозиторії + curated
+списки cipher387/API-s-for-OSINT та jivoi/awesome-osint; усе пропущено через
+політику проєкту.
+
+### Кандидати P1 — keyless, нативні модулі
+
+| Джерело | Напрямок | Що дає | Примітка |
+|---|---|---|---|
+| [ip-api.com](https://ip-api.com) | net/domain enrichment | Гео, ASN, org для IP; 45 req/min без ключа | Доповнює InternetDB (той дає порти/CVE, цей — гео/ASN) |
+| [Kickbox open](https://open.kickbox.com) | email baseline | Deliverability/існування mailbox, 1 req/s без ключа | Той самий клас, що Gravatar: одиночна перевірка |
+| [EVA pingutil](https://eva.pingutil.com) | email baseline | Валідність/диспозабельність email | Без ключа |
+| [DomainsDB.info](https://domainsdb.info) | domain | Пошук зареєстрованих доменів за словом | Free API |
+| [BotsArchive](https://botsarchive.com/docs.html) | telegram | JSON-каталог Telegram-ботів | Keyless |
+
+### Кандидати P1 — curated source pack (без коду, тільки посилання)
+
+✅ Додано цього раунду в `ru_ua_sources`: Telegago CSE, TG.World, Teleteg
+(`telegram-catalog`) та CourtListener RECAP, ICIJ Offshore Leaks
+(`legal-database`, глобальні pivots по особах/компаніях).
+
+### Кандидати P2 — безкоштовний ключ оператора
+
+| Джерело | Що дає | Примітка |
+|---|---|---|
+| CourtListener API | Повний пошук судових документів | Free key; розширення legal-database напряму |
+| AlienVault OTX | Passive DNS, reputation для доменів/IP | Free key |
+| SecurityTrails | Історичні DNS-записи | Free tier обмежений |
+
+### Відхилено за політикою (зафіксовано, щоб не переглядати)
+
+- **Breach-native пошук**: HIBP-клони — checkleaked.cc, osintcat.net, venacus.com,
+  stealseek.io, leak-lookup, BreachDirectory, psbdmp.ws, haveibeenzuckered,
+  iknowyour.dad. Закривається adapter-шаром h8mail/mosint.
+- **Account-probing за телефоном/email**: epieos, castrickclues, predictasearch,
+  whatsapp.checkleaked, telegram-finder, detectiva. Це пробів акаунтів — пряма
+  заборона розділу «Границы безопасности».
+- **Біометрія**: Face++ face search.
+- **Paid SaaS агрегатори**: osint.industries, Social Links, Noimosiny, IntelX,
+  Maltego hubs.
+- **Сумнівна легальність**: GhostTrack (трекінг за номером), AVinfoBot/avtogram
+  (VIN/платні авто-звіти RF) — сіра зона навіть як посилання.
 
 ## Наступний крок
 

@@ -129,6 +129,48 @@ RU_UA_SOURCES: tuple[RuUaSource, ...] = (
         "Russian federal resource of legally significant publications: bankruptcies, pledges, liquidation notices.",
         ("local-curation",),
     ),
+    # --- telegram channel catalogs (public search surfaces) ---
+    RuUaSource(
+        "Telegago (Google CSE)",
+        "https://cse.google.com/cse?q=+&cx=006368593537057042503:efxu7xprihg",
+        "telegram-catalog",
+        "ru-ua",
+        "Google Custom Search scoped to t.me - the widest public Telegram channel/group search surface.",
+        ("cipher387/osint_stuff_tool_collection",),
+    ),
+    RuUaSource(
+        "TG.World",
+        "https://tg.world/",
+        "telegram-catalog",
+        "ru-ua",
+        "Global search system for public Telegram channels, groups and bots.",
+        ("local-curation",),
+    ),
+    RuUaSource(
+        "Teleteg",
+        "https://teleteg.com/",
+        "telegram-catalog",
+        "ru-ua",
+        "Public Telegram search engine for channels and groups.",
+        ("local-curation",),
+    ),
+    # --- legal / leaks-of-record databases (person & company pivots) ---
+    RuUaSource(
+        "CourtListener RECAP",
+        "https://www.courtlistener.com/recap/",
+        "legal-database",
+        "global",
+        "Free archive of US federal court documents (PACER mirror); useful for company and person pivots.",
+        ("jivoi/awesome-osint",),
+    ),
+    RuUaSource(
+        "ICIJ Offshore Leaks",
+        "https://offshoreleaks.icij.org/",
+        "legal-database",
+        "global",
+        "Searchable ICIJ database of offshore entities, officers and intermediaries from leaked registry filings.",
+        ("jivoi/awesome-osint",),
+    ),
 )
 
 
