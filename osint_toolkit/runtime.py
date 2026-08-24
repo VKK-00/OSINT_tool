@@ -24,6 +24,7 @@ from .modules.domain_intel import (
     InternetDbModule,
     IpGeoModule,
     OtxPassiveDnsModule,
+    OtxReputationModule,
     PassiveDnsModule,
     UrlscanSearchModule,
     WaybackCdxModule,
@@ -40,6 +41,7 @@ from .modules.person_sources import (
     PredictasearchModule,
     WikidataPersonModule,
 )
+from .modules.telegram_intel import BotsArchiveModule
 
 
 @dataclass(frozen=True)
@@ -133,6 +135,9 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
        key=True, key_env="COURTLISTENER_API_KEY"),
     _d(OtxPassiveDnsModule(), network=True, tier="passive",
        key=True, key_env="OTX_API_KEY"),
+    _d(OtxReputationModule(), network=True, tier="passive",
+       key=True, key_env="OTX_API_KEY"),
+    _d(BotsArchiveModule(), network=True, tier="passive"),
 )
 
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {

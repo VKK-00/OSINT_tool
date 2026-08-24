@@ -28,6 +28,8 @@
 | AlienVault OTX passive DNS | `domain_intel.OtxPassiveDnsModule` | domain live | `OTX_API_KEY` |
 | recon-ng headless run | adapter `lanmaster53/recon-ng` | domain live | env RECONNG_* (operator .rc script) |
 | Bellingcat auto-archiver | adapter `bellingcat/auto-archiver` | url archive | env AUTOARCHIVER_CONFIG |
+| OTX community reputation (pulses) | `domain_intel.OtxReputationModule` | domain live | `OTX_API_KEY` |
+| BotsArchive bot catalog | `telegram_intel.BotsArchiveModule` | telegram/username live | — (верифіковано: getBotID.php) |
 | PredictaSearch reverse lookup | `person_sources.PredictasearchModule` | email/phone/username live | `PREDICTASEARCH_API_KEY` |
 
 ## Результати дослідження джерел (раунд 2026)
@@ -45,7 +47,7 @@ cipher387/API-s-for-OSINT та jivoi/awesome-osint, пропущені чере�
 
 | Джерело | Напрямок | Примітка |
 |---|---|---|
-| BotsArchive JSON | telegram | каталог ботів; уточнити ендпоінт |
+
 | SecurityTrails | історичні DNS | free tier обмежений |
 
 ## Політика: рішення оператора (2026)

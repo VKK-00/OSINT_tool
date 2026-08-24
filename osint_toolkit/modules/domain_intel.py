@@ -619,3 +619,94 @@ class OtxPassiveDnsModule:
                 },
             ),
         )
+
+OTX_GENERAL_URL = "https://otx.alienvault.com/api/v1/indicators/domain/{domain}/general"
+
+
+@dataclass(frozen=True)
+class OtxReputationModule:
+    """AlienVault OTX community reputation: pulses tagging a domain."""
+
+    name: str = "otx-reputation"
+    supported_targets: tuple[str, ...] = ("domain",)
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        host = _host_of(target.value)
+        url = OTX_GENERAL_URL.format(domain=quote(host, safe=""))
+        api_key = os.environ.get("OTX_API_KEY", "").strip()
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="otx-general", target=target.value,
+                    status="planned", url=url, confidence="not_checked",
+                    evidence="Dry run only. Pass --live with OTX_API_KEY to query community reputation.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        if not api_key:
+            return (
+                Finding(
+                    module=self.name, source="otx-general", target=target.value,
+                    status="skipped", confidence="high",
+                    evidence="OTX_API_KEY is not set; free registration at https://otx.alienvault.com.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        result = client.check(url, headers={"X-OTX-API-KEY": api_key})
+        payload = _json_object(result) if result.status_code == 200 else None
+        pulse_info = payload.get("pulse_info") if isinstance(payload, dict) else None
+        pulses = pulse_info.get("pulses") if isinstance(pulse_info, dict) else None
+        if not isinstance(pulses, list):
+            return (
+                Finding(
+                    module=self.name, source="otx-general", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence=result.error or f"HTTP {result.status_code} from OTX.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        pulse_count = int(pulse_info.get("count") or len(pulses))
+        if not pulses:
+            return (
+                Finding(
+                    module=self.name, source="otx-general", target=target.value,
+                    status="not_found", http_status=200, confidence="medium",
+                    evidence=f"No OTX community pulses reference '{host}'.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        names = [str(p.get("name") or "")[:80] for p in pulses if isinstance(p, dict)]
+        tags = sorted({
+            tag
+            for p in pulses if isinstance(p, dict)
+            for tag in (p.get("tags") or [])
+            if isinstance(tag, str)
+        })
+        adversaries = sorted({
+            str(p.get("adversary") or "")
+            for p in pulses if isinstance(p, dict) and p.get("adversary")
+        })
+        metadata = {
+            "queried_host": host,
+            "pulse_count": str(pulse_count),
+            "pulse_names": ", ".join(names)[:400],
+            "tags": ", ".join(tags)[:200],
+        }
+        if adversaries:
+            metadata["adversaries"] = ", ".join(adversaries)[:150]
+        return (
+            Finding(
+                module=self.name, source="otx-general", target=target.value,
+                status="candidate", url=url, http_status=200,
+                title=f"OTX reputation: {pulse_count} community pulse(s)",
+                confidence="medium" if pulse_count < 5 else "high",
+                evidence=(
+                    "Community threat-intel pulses reference this domain - "
+                    "review pulse names before treating as malicious."
+                ),
+                metadata=metadata,
+            ),
+        )
