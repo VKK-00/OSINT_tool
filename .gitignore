@@ -23,3 +23,10 @@ profiles/*.json
 
 # Test fixtures generated locally
 test_photo.jpg
+# research/debug scratch at repo root
+/chk_out.txt
+/di.txt
+/insp.txt
+/sect.txt
+/research*.txt
+/_*.py
