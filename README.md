@@ -612,7 +612,7 @@ python -m ruff check .
 
 В native-код без отдельного режима не переносится:
 
-- массовую проверку аккаунтов по email/телефону;
+- массовую проверку аккаунтов по email/телефону (single-target пробів - только через restricted-адаптеры holehe/ignorant за явным --allow-restricted/--execute; bulk-режима нет);
 - обход приватности или ограничений платформ;
 - password recovery flows;
 - сбор закрытых данных;

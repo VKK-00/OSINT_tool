@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -153,6 +154,9 @@ class AdapterSpec:
             "detectdee_data": _detectdee_data_value(),
             "spiderfoot_script": _spiderfoot_script_value(),
             "spiderfoot_python": _spiderfoot_python_value(),
+            "holehe_python": _holehe_python_value(),
+            "ignorant_python": _ignorant_python_value(),
+            "target_digits": _target_digits(target.value),
         }
 
 
@@ -673,27 +677,60 @@ ADAPTERS: tuple[AdapterSpec, ...] = (
     ),
     AdapterSpec(
         "megadose/holehe",
-        "email to registered accounts",
+        "email to registered accounts on ~150 sites",
         "external_cli",
         "GPL-3.0",
         "restricted",
-        "",
-        "Password-recovery based account enumeration should not be copied into native code.",
-        install_kind="manual",
-        install_note="Restricted adapter: do not install or run without explicit lawful scope review.",
+        "{holehe_python} -m holehe <email> --only-used --no-color --no-clear",
+        (
+            "Restricted account-enumeration adapter (operator-approved class): "
+            "single-target checks behind explicit --allow-restricted / "
+            "run-adapter --execute. Mass/bulk probing stays out of scope."
+        ),
+        ("email",),
+        (),
+        "manual",
+        (),
+        (
+            "pip install holehe into an isolated environment; set HOLEHE_PYTHON "
+            "to that interpreter (defaults to the current one)."
+        ),
         docs_url="https://github.com/megadose/holehe",
+        optional_env=("HOLEHE_PYTHON",),
+        command_templates=(
+            ("email", (
+                "{holehe_python}", "-m", "holehe", "{target_value}",
+                "--only-used", "--no-color", "--no-clear",
+            )),
+        ),
     ),
     AdapterSpec(
         "megadose/ignorant",
-        "phone to registered accounts",
+        "phone to registered accounts on social platforms",
         "external_cli",
         "GPL-3.0",
         "restricted",
-        "",
-        "Phone account enumeration should remain restricted and explicit.",
-        install_kind="manual",
-        install_note="Restricted adapter: do not install or run without explicit lawful scope review.",
+        "{ignorant_python} -m ignorant <phone-with-country-code>",
+        (
+            "Restricted phone account-enumeration adapter (operator-approved "
+            "class): single number per run behind explicit --allow-restricted; "
+            "mass/bulk probing stays out of scope."
+        ),
+        ("phone",),
+        (),
+        "manual",
+        (),
+        (
+            "pip install ignorant into an isolated environment; set IGNORANT_PYTHON "
+            "to that interpreter (defaults to the current one)."
+        ),
         docs_url="https://github.com/megadose/ignorant",
+        optional_env=("IGNORANT_PYTHON",),
+        command_templates=(
+            ("phone", (
+                "{ignorant_python}", "-m", "ignorant", "{target_digits}",
+            )),
+        ),
     ),
     AdapterSpec(
         "sundowndev/phoneinfoga",
@@ -1016,6 +1053,18 @@ def _instagram_profile_value(value: str) -> str:
     if re.fullmatch(r"[A-Za-z0-9._]{1,30}", normalized):
         return normalized
     return value.strip().lstrip("@")
+
+
+def _holehe_python_value() -> str:
+    return os.environ.get("HOLEHE_PYTHON", "").strip() or sys.executable
+
+
+def _ignorant_python_value() -> str:
+    return os.environ.get("IGNORANT_PYTHON", "").strip() or sys.executable
+
+
+def _target_digits(value: str) -> str:
+    return value.strip().lstrip("+")
 
 
 def _bbot_target_value(target: ScanTarget) -> str:

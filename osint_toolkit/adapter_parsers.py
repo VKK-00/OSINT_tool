@@ -75,6 +75,8 @@ PARSER_REPOSITORIES = {
     "jasonxtn/argus",
     "Owez/yark",
     "Yvesssn/DetectDee",
+    "megadose/holehe",
+    "megadose/ignorant",
 }
 
 PHONE_KEYS = {
@@ -94,6 +96,77 @@ EMAIL_KEYS = {
     "name": "name",
     "full name": "name",
 }
+
+
+_ACCOUNT_ENUM_LINE_RE = None
+
+
+def _account_enum_findings(
+    repository: str,
+    target: ScanTarget,
+    text: str,
+    *,
+    kind: str,
+    source_label: str,
+    url_template: str,
+    note: str,
+) -> tuple[Finding, ...]:
+    """Parse [+] Site lines emitted by holehe/ignorant account probes.
+
+    Only positive confirmations become findings; everything else the tools
+    print is noise and stays out of the evidence graph.
+    """
+    import re as _re
+
+    line_re = _re.compile(r"^\[\+\]\s*(.+?)\s*$")
+    findings: list[Finding] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        match = line_re.match(raw_line.strip())
+        if not match:
+            continue
+        site = match.group(1).strip()
+        if not site or site.lower() in seen:
+            continue
+        seen.add(site.lower())
+        site_url = ""
+        if url_template:
+            host = site.lower().replace(" ", "")
+            site_url = url_template.format(site=host)
+        metadata = {
+            "site": site,
+            "probe_class": "account_enumeration",
+            "consent": "restricted_adapter_explicit_run",
+        }
+        if target.kind:
+            metadata["target_kind"] = target.kind
+        findings.append(Finding(
+            module=repository,
+            source=f"{source_label}:{site}",
+            target=target.value,
+            status="candidate",
+            url=site_url or "",
+            title=f"Registered: {site}",
+            confidence="high",
+            evidence=note,
+            metadata=metadata,
+        ))
+    if not findings:
+        return (
+            Finding(
+                module=repository,
+                source=f"{source_label}-summary",
+                target=target.value,
+                status="not_found",
+                confidence="medium",
+                evidence=(
+                    "No confirmed registered accounts in probe output "
+                    "(only-used mode; negative sites are not listed)."
+                ),
+            ),
+        )
+    return tuple(findings)
+
 
 
 def parse_adapter_output(
@@ -152,6 +225,20 @@ def parse_adapter_output(
         return _yark_findings(repository, target, text)
     if repository == "Yvesssn/DetectDee":
         return _detectdee_findings(repository, target, text)
+    if repository == "megadose/holehe":
+        return _account_enum_findings(
+            repository, target, text,
+            kind="email", source_label="holehe",
+            url_template="https://{site}",
+            note="Password-recovery probe confirmed a registered account.",
+        )
+    if repository == "megadose/ignorant":
+        return _account_enum_findings(
+            repository, target, text,
+            kind="social", source_label="ignorant",
+            url_template="",
+            note="Platform confirmed the phone number is registered.",
+        )
 
     findings: list[Finding] = []
     seen: set[tuple[str, str, str]] = set()

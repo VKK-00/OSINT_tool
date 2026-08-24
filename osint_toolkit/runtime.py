@@ -15,6 +15,7 @@ from .modules import (
     UsernameScanModule,
     WebMetadataModule,
 )
+from .modules.breach_intel import HibpBreachModule, PsbdmpDumpModule
 from .modules.company_intel import CompaniesHouseModule, GleifCompanyModule
 from .modules.deep_leaks import DeepLeaksModule
 from .modules.deep_sanctions import SanctionsIndexModule
@@ -117,6 +118,10 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(DomainsdbSearchModule(), network=True, tier="passive"),
     _d(EmailQualityModule(), network=True, tier="passive",
        sensitivity="self_published"),
+    _d(HibpBreachModule(), network=True, tier="passive",
+       sensitivity="breach_metadata", key=True, key_env="HIBP_API_KEY"),
+    _d(PsbdmpDumpModule(), network=True, tier="active",
+       sensitivity="breach_derived"),
 )
 
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {
