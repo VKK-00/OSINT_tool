@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -372,3 +373,155 @@ def parse_hackertarget_hostsearch(text: str) -> tuple[tuple[str, str], ...]:
         seen.add(hostname)
         pairs.append((hostname, ip))
     return tuple(pairs)
+
+
+IPAPI_URL = "http://ip-api.com/json/{ip}"
+IPAPI_FIELDS = (
+    "status,message,country,countryCode,regionName,city,zip,lat,lon,"
+    "timezone,isp,org,as,asname,reverse,mobile,proxy,hosting,query"
+)
+
+
+@dataclass(frozen=True)
+class IpGeoModule:
+    """Keyless IP geolocation + network ownership via ip-api.com (45 req/min)."""
+
+    name: str = "ip-api-geo"
+    supported_targets: tuple[str, ...] = ("domain", "url")
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        host = _host_of(target.value)
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="ip-api", target=target.value,
+                    status="planned", confidence="not_checked",
+                    evidence="Dry run only. Pass --live to resolve the host and query ip-api.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        ip = _resolve_ipv4(host)
+        if not ip:
+            return (
+                Finding(
+                    module=self.name, source="ip-api", target=target.value,
+                    status="not_found", confidence="medium",
+                    evidence=f"Could not resolve '{host}' to an IPv4 address.",
+                    metadata={"queried_host": host},
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        result = client.check(IPAPI_URL.format(ip=ip))
+        payload = _json_object(result) if result.status_code == 200 else None
+        if not isinstance(payload, dict) or payload.get("status") != "success":
+            message = str((payload or {}).get("message") or result.error
+                          or f"HTTP {result.status_code}")
+            return (
+                Finding(
+                    module=self.name, source="ip-api", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low", evidence=message,
+                    metadata={"queried_host": host, "ip": ip},
+                ),
+            )
+        metadata = {
+            "queried_host": host,
+            "ip": str(payload.get("query") or ip),
+            "country": str(payload.get("country") or ""),
+            "country_code": str(payload.get("countryCode") or ""),
+            "region": str(payload.get("regionName") or ""),
+            "city": str(payload.get("city") or ""),
+            "lat": str(payload.get("lat") or ""),
+            "lon": str(payload.get("lon") or ""),
+            "timezone": str(payload.get("timezone") or ""),
+            "isp": str(payload.get("isp") or ""),
+            "org": str(payload.get("org") or ""),
+            "as": str(payload.get("as") or ""),
+            "reverse_dns": str(payload.get("reverse") or ""),
+            "is_mobile": "yes" if payload.get("mobile") else "no",
+            "is_proxy": "yes" if payload.get("proxy") else "no",
+            "is_hosting": "yes" if payload.get("hosting") else "no",
+        }
+        metadata = {key: value for key, value in metadata.items() if value}
+        location_bits = ", ".join(filter(None, (
+            payload.get("city"), payload.get("regionName"), payload.get("country"))))
+        return (
+            Finding(
+                module=self.name, source="ip-api", target=target.value,
+                status="candidate", url=IPAPI_URL.format(ip=ip),
+                title=f"{ip} — {location_bits or 'unknown location'}",
+                http_status=200, confidence="medium",
+                evidence="Keyless ip-api.com network ownership and geolocation lookup.",
+                metadata=metadata,
+            ),
+        )
+
+
+DOMAINSDB_SEARCH_URL = "https://api.domainsdb.info/v1/domains/search?domain={query}"
+
+
+@dataclass(frozen=True)
+class DomainsdbSearchModule:
+    """Registered-domain search by name word (brand/typo pivots), free API."""
+
+    name: str = "domainsdb-search"
+    supported_targets: tuple[str, ...] = ("domain", "company")
+
+    def scan(self, target: ScanTarget, config: RunConfig) -> tuple[Finding, ...]:
+        word = re.sub(r"[^A-Za-z0-9-]", "", target.value.strip()).lower()
+        if len(word) < 3:
+            return (
+                Finding(
+                    module=self.name, source="normalizer", target=target.value,
+                    status="invalid", confidence="high",
+                    evidence="Need at least 3 latin/digit characters for a domain search.",
+                ),
+            )
+        url = DOMAINSDB_SEARCH_URL.format(query=quote(word))
+        if not config.live:
+            return (
+                Finding(
+                    module=self.name, source="domainsdb", target=target.value,
+                    status="planned", url=url, confidence="not_checked",
+                    evidence="Dry run only. Pass --live to search registered domains.",
+                    metadata={"search_word": word},
+                ),
+            )
+        client = HttpClient(timeout=config.timeout, user_agent=config.user_agent,
+                            retries=config.http_retries, backoff_seconds=config.http_backoff)
+        result = client.check(url)
+        payload = _json_object(result) if result.status_code == 200 else None
+        domains = payload.get("domains") if isinstance(payload, dict) else None
+        if not isinstance(domains, list):
+            return (
+                Finding(
+                    module=self.name, source="domainsdb", target=target.value,
+                    status="unknown", http_status=result.status_code,
+                    confidence="low",
+                    evidence=(
+                        result.error
+                        or f"HTTP {result.status_code} from DomainsDB (free tier may rate-limit)."
+                    ),
+                    metadata={"search_word": word},
+                ),
+            )
+        names = []
+        for item in domains[:15]:
+            if isinstance(item, dict) and item.get("domain"):
+                names.append(str(item["domain"]))
+        total = str(payload.get("total") or len(domains))
+        return (
+            Finding(
+                module=self.name, source="domainsdb", target=target.value,
+                status="candidate", url=url, http_status=200,
+                confidence="low",
+                title=f"DomainsDB: {total} registered domains matching '{word}'",
+                evidence="Free registered-domain search; useful for brand and typo pivots.",
+                metadata={
+                    "search_word": word,
+                    "total": total,
+                    "sample_domains": ", ".join(names),
+                },
+            ),
+        )

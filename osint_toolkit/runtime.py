@@ -19,12 +19,15 @@ from .modules.company_intel import CompaniesHouseModule, GleifCompanyModule
 from .modules.deep_leaks import DeepLeaksModule
 from .modules.deep_sanctions import SanctionsIndexModule
 from .modules.domain_intel import (
+    DomainsdbSearchModule,
     InternetDbModule,
+    IpGeoModule,
     PassiveDnsModule,
     UrlscanSearchModule,
     WaybackCdxModule,
 )
 from .modules.dorks import DorksModule
+from .modules.email_intel import EmailQualityModule
 from .modules.exif_photo import ExifPhotoModule
 from .modules.person_sources import (
     BlueskyProfileModule,
@@ -110,6 +113,10 @@ MODULE_DESCRIPTORS: tuple[ModuleDescriptor, ...] = (
     _d(PassiveDnsModule(), network=True, tier="passive"),
     _d(CompaniesHouseModule(), network=True, tier="passive",
        key=True, key_env="COMPANIES_HOUSE_API_KEY"),
+    _d(IpGeoModule(), network=True, tier="passive"),
+    _d(DomainsdbSearchModule(), network=True, tier="passive"),
+    _d(EmailQualityModule(), network=True, tier="passive",
+       sensitivity="self_published"),
 )
 
 MODULE_DESCRIPTOR_MAP: dict[str, ModuleDescriptor] = {

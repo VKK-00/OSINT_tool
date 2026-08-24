@@ -316,6 +316,7 @@ SEARCH_PROFILES: tuple[SearchProfile, ...] = (
         native_kinds=("email",),
         native_modules=(
         "email-baseline",
+        "email-quality",
         ),
         adapter_profiles=("email-safe", "broad-recon"),
         adapter_repositories=("Yvesssn/DetectDee",),
