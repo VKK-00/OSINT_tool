@@ -1,0 +1,59 @@
+name: Build Priyom UVB-76 corpus
+
+on:
+  push:
+    branches:
+      - analysis/uvb76-priyom-20260903
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: uvb76_research
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: uvb76_research/requirements.txt
+      - name: Reconstruct analysis sources
+        run: python bootstrap.py
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Run parser tests
+        run: PYTHONPATH=. pytest -q
+      - name: Crawl archive and analyze
+        run: python uvb76_pipeline.py --output artifacts --pause-seconds 0.10
+      - name: Add reproducibility files
+        run: |
+          cp uvb76_pipeline.py artifacts/
+          cp requirements.txt artifacts/
+          cp -r tests artifacts/tests
+          cat > artifacts/SOURCE_AND_LICENSE.md <<'TXT'
+          # Source and reuse notes
+
+          Primary source: https://priyom.org/military-stations/russia/the-buzzer
+
+          Priyom.org states that its content is licensed under Creative Commons
+          Attribution-NonCommercial-ShareAlike 4.0 International. This bundle is
+          prepared for non-commercial research and retains source URLs and raw HTML
+          hashes in `source_manifest.csv`.
+
+          The archive is maintained by observers. Absence of a row or monthly page
+          is not proof that no transmission occurred.
+          TXT
+      - name: Build ZIP
+        run: zip -9 -r uvb76_priyom_corpus_and_initial_analysis.zip artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uvb76-priyom-corpus-analysis
+          path: uvb76_research/uvb76_priyom_corpus_and_initial_analysis.zip
+          if-no-files-found: error
+          retention-days: 7
