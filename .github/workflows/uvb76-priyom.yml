@@ -25,16 +25,69 @@ jobs:
           cache-dependency-path: uvb76_research/requirements.txt
       - name: Reconstruct analysis sources
         run: python bootstrap.py
+      - name: Apply pandas 2.x compatibility fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("uvb76_pipeline.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '.size().rename("message_count").reset_index(names="year")':
+                  '.size().rename_axis("year").reset_index(name="message_count")',
+              '.reindex(weekday_order, fill_value=0).rename("message_count").reset_index(names="weekday")':
+                  '.reindex(weekday_order, fill_value=0).rename_axis("weekday").reset_index(name="message_count")',
+              '.reindex(range(24), fill_value=0).rename("message_count").reset_index(names="hour_moscow")':
+                  '.reindex(range(24), fill_value=0).rename_axis("hour_moscow").reset_index(name="message_count")',
+              '.size().rename("message_count").sort_values(ascending=False).reset_index(names="date_utc")':
+                  '.size().rename("message_count").sort_values(ascending=False).rename_axis("date_utc").reset_index()',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f"Expected one occurrence, found {count}: {old}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: Install dependencies
         run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Run parser tests
         run: PYTHONPATH=. pytest -q
+      - name: Smoke-test complete analytical stage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          import pandas as pd
+          from uvb76_pipeline import analyze
+
+          df = pd.DataFrame({
+              "datetime_utc": ["2024-01-29T15:42:00Z", "2024-03-15T08:07:00Z"],
+              "is_exact_duplicate": [False, False],
+              "payload_normalized": ["KRASOPUH 6191 3430", "PASECHNYJ 1089 3317"],
+              "numeric_groups": ["6191|3430", "1089|3317"],
+              "key_group_normalized": ["65353", "25419"],
+              "callsign": ["NZhTI/НЖТИ", "NZhTI/НЖТИ"],
+          })
+          manifest = pd.DataFrame([
+              {"fetch_status": "ok", "row_count": 2, "source_url": "smoke-test"}
+          ])
+          with TemporaryDirectory() as temporary:
+              output = Path(temporary)
+              summary = analyze(df, manifest, output)
+              assert summary["rows_after_exact_row_deduplication"] == 2
+              yearly = pd.read_csv(output / "counts_by_year.csv")
+              assert yearly.to_dict("records") == [{"year": 2024, "message_count": 2}]
+          print("Full analysis smoke test passed")
+          PY
       - name: Crawl archive and analyze
         run: python uvb76_pipeline.py --output artifacts --pause-seconds 0.10
       - name: Add reproducibility files
         run: |
           cp uvb76_pipeline.py artifacts/
+          cp bootstrap.py artifacts/
           cp requirements.txt artifacts/
+          cp ../.github/workflows/uvb76-priyom.yml artifacts/workflow.yml
           cp -r tests artifacts/tests
           cat > artifacts/SOURCE_AND_LICENSE.md <<'TXT'
           # Source and reuse notes
