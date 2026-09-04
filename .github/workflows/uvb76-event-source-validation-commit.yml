@@ -1,0 +1,65 @@
+name: UVB-76 event source validation commit
+
+on:
+  push:
+    branches:
+      - uvb76-corpus-run-20260904
+    paths:
+      - '.github/workflows/uvb76-event-source-validation-commit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: uvb76-corpus-run-20260904
+      - name: Validate public source URLs
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, json, time
+          from pathlib import Path
+          import requests
+          from bs4 import BeautifulSoup
+
+          urls = [
+            ('NATO strategic exercises topic','https://www.nato.int/cps/en/natohq/topics_111767.htm'),
+            ('NATO Zapad 2017','https://www.nato.int/cps/en/natohq/news_146636.htm'),
+            ('NATO Vostok 2018 review','https://www.nato.int/docu/review/articles/2018/12/20/russias-vostok-2018-exercise-and-the-changing-nature-of-russian-military-exercises/index.html'),
+            ('NATO Zapad 2021','https://www.nato.int/cps/en/natohq/news_186945.htm'),
+            ('Kremlin 2022-02-24','http://en.kremlin.ru/events/president/news/67843'),
+            ('Kremlin 2022-09-21','http://en.kremlin.ru/events/president/news/69390'),
+            ('Kremlin 2022-09-30','http://en.kremlin.ru/events/president/news/69465'),
+            ('Kremlin 2023-06-24','http://en.kremlin.ru/events/president/news/71496'),
+          ]
+          s=requests.Session();s.headers['User-Agent']='Mozilla/5.0 UVB76-public-research-source-validator/1.0'
+          rows=[]
+          for label,url in urls:
+            try:
+              r=s.get(url,timeout=40,allow_redirects=True)
+              soup=BeautifulSoup(r.text,'html.parser')
+              title=soup.title.get_text(' ',strip=True) if soup.title else ''
+              body=' '.join(soup.get_text(' ',strip=True).split())[:2500]
+              rows.append({'label':label,'requested_url':url,'status_code':r.status_code,'final_url':r.url,'title':title,'body_excerpt':body,'bytes':len(r.content),'error':''})
+            except Exception as exc:
+              rows.append({'label':label,'requested_url':url,'status_code':'','final_url':'','title':'','body_excerpt':'','bytes':0,'error':f'{type(exc).__name__}: {exc}'})
+            time.sleep(.5)
+          out=Path('research/uvb76/event_source_validation')
+          out.mkdir(parents=True,exist_ok=True)
+          (out/'event_source_validation.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf-8')
+          with (out/'event_source_validation.csv').open('w',newline='',encoding='utf-8-sig') as f:
+            w=csv.DictWriter(f,fieldnames=rows[0].keys());w.writeheader();w.writerows(rows)
+          PY
+      - name: Commit validation result to isolated branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/uvb76/event_source_validation
+          git commit -m 'Persist UVB-76 event source validation' || exit 0
+          git push origin HEAD:uvb76-corpus-run-20260904
