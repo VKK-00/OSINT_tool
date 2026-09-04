@@ -1,0 +1,73 @@
+name: UVB-76 public corpus build
+
+on:
+  push:
+    branches:
+      - chatgpt/uvb76-corpus-20260904
+    paths:
+      - '.github/workflows/uvb76-corpus.yml'
+      - 'research/uvb76/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out isolated research branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install parser dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install beautifulsoup4 lxml pandas pytest requests
+
+      - name: Run parser contract tests
+        run: pytest -q research/uvb76/test_uvb76_collect.py
+
+      - name: Collect and normalize public Priyom pages
+        run: |
+          python research/uvb76/uvb76_collect.py \
+            --output uvb76_public_corpus \
+            --mirror-repository NatanaelAntonioli/UVB-76-Estudo
+
+      - name: Package corpus
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, zipfile
+          root = Path('uvb76_public_corpus')
+          manifest = []
+          for p in sorted(root.rglob('*')):
+              if p.is_file():
+                  manifest.append({
+                      'path': p.relative_to(root).as_posix(),
+                      'bytes': p.stat().st_size,
+                      'sha256': hashlib.sha256(p.read_bytes()).hexdigest(),
+                  })
+          (root / 'FILE_MANIFEST.json').write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+          with zipfile.ZipFile('uvb76_public_corpus.zip', 'w', zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(root.rglob('*')):
+                  if p.is_file():
+                      z.write(p, arcname=f'{root.name}/{p.relative_to(root)}')
+          with zipfile.ZipFile('uvb76_public_corpus.zip') as z:
+              assert z.testzip() is None
+          PY
+
+      - name: Upload normalized corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvb76-public-corpus-20260904
+          path: uvb76_public_corpus.zip
+          if-no-files-found: error
+          retention-days: 7
