@@ -42,7 +42,7 @@ def test_parse_page_preserves_source_fields_and_extracts_two_blocks():
     assert len(blocks) == 2
     assert [b["payload_normalized"] for b in blocks] == ["68561920", "36415048"]
     assert [b["codeword_latin"] for b in blocks] == ["ROKOShTOF", "LIMBODUH"]
-    assert repeats and repeats[0]["payload_normalized"] == "36415048"
+    assert repeats and repeats[0]["ref_payload"] == "36415048"
     assert not issues
 
 
