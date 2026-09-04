@@ -1,0 +1,46 @@
+name: UVB-76 corpus inspection
+
+on:
+  push:
+    branches:
+      - uvb76-corpus-run-20260904
+    paths:
+      - 'research/uvb76_collect.py'
+      - 'research/uvb76_inspect.py'
+      - '.github/workflows/uvb76-analysis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: uvb76-corpus-run-20260904
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --upgrade requests beautifulsoup4 lxml pandas python-dateutil
+      - name: Collect public Priyom corpus
+        run: python research/uvb76_collect.py
+      - name: Inspect generated corpus
+        run: python research/uvb76_inspect.py
+      - name: Commit inspection metadata to isolated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/uvb76_outputs/inspection.json
+          git commit -m 'Add UVB-76 corpus inspection metadata [skip uvb76 analysis]' || exit 0
+          git push origin HEAD:uvb76-corpus-run-20260904
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uvb76-inspected-corpus-20260904
+          path: |
+            corpus/
+            research/uvb76_outputs/inspection.json
+          retention-days: 7
